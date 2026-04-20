@@ -1,0 +1,141 @@
+<style>
+/* ===== 사이드바 ===== */
+:root { --sb-w: 220px; --sb-w-collapsed: 56px; }
+body { margin-left: var(--sb-w) !important; transition: margin-left .25s ease; }
+body.sb-collapsed { margin-left: var(--sb-w-collapsed) !important; }
+
+.sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; z-index: 200;
+    width: var(--sb-w); background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+    display: flex; flex-direction: column; transition: width .25s ease;
+    box-shadow: 2px 0 12px rgba(0,0,0,.08); overflow: hidden;
+}
+body.sb-collapsed .sidebar { width: var(--sb-w-collapsed); }
+
+.sb-toggle {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; margin: 10px; border: none; border-radius: 8px;
+    background: rgba(255,255,255,.12); color: #fff; cursor: pointer;
+    transition: background .15s;
+}
+.sb-toggle:hover { background: rgba(255,255,255,.22); }
+
+.sb-brand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 16px 16px; border-bottom: 1px solid rgba(255,255,255,.12);
+    white-space: nowrap; overflow: hidden;
+}
+.sb-brand-text { color: #fff; font-size: .82rem; font-weight: 700; opacity: 1; transition: opacity .2s; }
+body.sb-collapsed .sb-brand-text { opacity: 0; }
+
+.sb-nav { flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+
+.sb-link {
+    display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+    border-radius: 8px; color: rgba(255,255,255,.8); text-decoration: none;
+    font-size: .82rem; font-weight: 500; white-space: nowrap; transition: all .15s;
+}
+.sb-link:hover { background: rgba(255,255,255,.12); color: #fff; }
+.sb-link.active { background: rgba(255,255,255,.2); color: #fff; font-weight: 600; }
+.sb-link svg { flex-shrink: 0; width: 20px; height: 20px; }
+.sb-link-text { opacity: 1; transition: opacity .2s; overflow: hidden; }
+body.sb-collapsed .sb-link-text { opacity: 0; width: 0; }
+
+.sb-section { padding: 12px 16px 4px; font-size: .65rem; font-weight: 600;
+    color: rgba(255,255,255,.4); text-transform: uppercase; letter-spacing: 1px;
+    white-space: nowrap; overflow: hidden; }
+body.sb-collapsed .sb-section { opacity: 0; }
+
+.sb-footer {
+    padding: 12px 16px; border-top: 1px solid rgba(255,255,255,.1);
+    font-size: .7rem; color: rgba(255,255,255,.35); white-space: nowrap; overflow: hidden;
+}
+body.sb-collapsed .sb-footer { opacity: 0; }
+
+@media (max-width: 768px) {
+    body { margin-left: 0 !important; }
+    .sidebar { transform: translateX(-100%); width: var(--sb-w); }
+    .sidebar.mobile-open { transform: translateX(0); }
+    body.sb-collapsed .sidebar { width: var(--sb-w); }
+    .sb-mobile-overlay {
+        display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 199;
+    }
+    .sidebar.mobile-open ~ .sb-mobile-overlay { display: block; }
+}
+</style>
+
+<aside class="sidebar" id="sidebar">
+    <div style="display:flex;align-items:center;padding:10px 10px 0">
+        <button class="sb-toggle" id="sbToggle" title="메뉴 접기/펼치기">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+        </button>
+    </div>
+    <div class="sb-brand">
+        <span class="sb-brand-text">회계 자금 흐름 분석</span>
+    </div>
+
+    <nav class="sb-nav">
+        <div class="sb-section">메뉴</div>
+        <a href="/" class="sb-link" data-path="/">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <span class="sb-link-text">대시보드</span>
+        </a>
+        <a href="/transactions" class="sb-link" data-path="/transactions">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            <span class="sb-link-text">거래내역</span>
+        </a>
+        <a href="/classify" class="sb-link" data-path="/classify">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            <span class="sb-link-text">일괄분류</span>
+        </a>
+        <a href="/forex" class="sb-link" data-path="/forex">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            <span class="sb-link-text">외화계좌</span>
+        </a>
+        <a href="/data" class="sb-link" data-path="/data">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            <span class="sb-link-text">데이터 현황</span>
+        </a>
+
+        <div class="sb-section" style="margin-top:12px">관리</div>
+        <a href="/settings" class="sb-link" data-path="/settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            <span class="sb-link-text">설정</span>
+        </a>
+    </nav>
+
+    <div class="sb-footer">v1.0</div>
+</aside>
+<div class="sb-mobile-overlay" id="sbOverlay"></div>
+
+<script>
+(function(){
+    const sb = document.getElementById('sidebar');
+    const btn = document.getElementById('sbToggle');
+    const overlay = document.getElementById('sbOverlay');
+    const saved = localStorage.getItem('sb_collapsed');
+    if (saved === '1') document.body.classList.add('sb-collapsed');
+
+    btn.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+            sb.classList.toggle('mobile-open');
+        } else {
+            document.body.classList.toggle('sb-collapsed');
+            localStorage.setItem('sb_collapsed', document.body.classList.contains('sb-collapsed') ? '1' : '0');
+        }
+    });
+    if (overlay) overlay.addEventListener('click', () => sb.classList.remove('mobile-open'));
+
+    // 현재 페이지 활성화
+    const path = window.location.pathname;
+    document.querySelectorAll('.sb-link').forEach(a => {
+        const dp = a.dataset.path;
+        if (dp === '/' ? path === '/' : path.startsWith(dp)) a.classList.add('active');
+    });
+})();
+</script>

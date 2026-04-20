@@ -1,0 +1,873 @@
+people:
+- name: 김강미
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-4169-2642
+  bank: 우리은행
+  bank_number: 1002-529-280913
+  tier: SS
+- name: 김건호
+  role: 가이드
+  status: 일시중단
+  phone: ‭+82 10-3752-7932‬
+  bank: 국민은행
+  bank_number: '62420104025136'
+  tier: Non
+- name: 김경민
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-5211-1186
+  bank: 우리은행
+  bank_number: 1002-231-697612
+  tier: A
+- name: 김경애
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-7222-4346
+  bank: 우리은행
+  bank_number: 302-316310-02-001
+  tier: S
+- name: 김경진
+  role: 가이드
+  status: 계약종료
+  phone: ''
+  bank: 카카오뱅크
+  bank_number: '3333194504844'
+  tier: Non
+- name: 김두철
+  role: 가이드
+  status: 계약종료
+  phone: +82 10-2156-3733
+  bank: 카카오뱅크
+  bank_number: 3333-02-0396192
+  tier: Non
+- name: 김병욱
+  role: 가이드
+  status: 계약종료
+  phone: ''
+  bank: 농협은행
+  bank_number: '3521364509103'
+  tier: Non
+- name: 김서현
+  role: 가이드
+  status: 계약종료
+  phone: +82 10-2994-3738
+  bank: 국민은행
+  bank_number: 210-01-1038-561
+  tier: B
+- name: 김성기
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-2262-6346‬
+  bank: 우리은행
+  bank_number: '1002252207317'
+  tier: S
+- name: 김수권
+  role: 가이드
+  status: 계약종료
+  phone: ''
+  bank: 농협은행
+  bank_number: 003 - 12 - 180218
+  tier: Non
+- name: 김신
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-2992-1541
+  bank: 우리은행
+  bank_number: '1002963408747'
+  tier: SS
+- name: 김종수
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-7472-7063
+  bank: SC제일은행
+  bank_number: '30120109259'
+  tier: S
+- name: 김지연
+  role: 보조
+  status: 활동 중
+  phone: ''
+  bank: 국민은행
+  bank_number: '45670201282406'
+  tier: Non
+- name: 김지후
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-6710-2717
+  bank: 국민은행
+  bank_number: '56050202076833'
+  tier: Non
+- name: 김태영
+  role: 가이드
+  status: 계약종료
+  phone: ''
+  bank: 국민은행
+  bank_number: '27270204070983'
+  tier: Non
+- name: 김희성
+  role: 가이드
+  status: 계약종료
+  phone: ‭+82 10-9207-1912‬
+  bank: 신한은행
+  bank_number: 110-060-864107
+  tier: S
+- name: 나나
+  role: 가이드
+  status: 계약종료
+  phone: ''
+  bank: 우리은행
+  bank_number: 100-236-2549598
+  tier: C
+- name: 문준호
+  role: 가이드
+  status: 일시중단
+  phone: +82 10-5186-5798
+  bank: ''
+  bank_number: ''
+  tier: S
+- name: 문혜경
+  role: 가이드
+  status: 계약종료
+  phone: ''
+  bank: 우리은행
+  bank_number: '15108097835'
+  tier: Non
+- name: 박기선
+  role: 가이드
+  status: 계약종료
+  phone: ‭+82 10-7283-0070‬
+  bank: 신한은행
+  bank_number: '110220787337'
+  tier: Non
+- name: 박민지
+  role: 가이드
+  status: 계약종료
+  phone: +82 10-8402-3242
+  bank: 농협은행
+  bank_number: 302-1851-9821-71
+  tier: Non
+- name: 박선예
+  role: 가이드
+  status: 계약종료
+  phone: ''
+  bank: 신한은행
+  bank_number: 110 272 911413
+  tier: Non
+- name: 박승희
+  role: 가이드
+  status: 활동 중
+  phone: ‭+82 10-8388-7467‬
+  bank: 국민은행
+  bank_number: '01670204050051'
+  tier: C
+- name: 박진경
+  role: 가이드
+  status: 계약종료
+  phone: ‭+82 10-7453-7412‬
+  bank: 국민은행
+  bank_number: 031-21-0799-441
+  tier: A
+- name: 배지원
+  role: 가이드
+  status: 활동 중
+  phone: ‭+82 10-2388-8454‬
+  bank: 국민은행
+  bank_number: '34940104025592'
+  tier: S
+- name: 부유경
+  role: 가이드
+  status: 활동 중
+  phone: ‭+82 10-7544-1996‬
+  bank: 농협은행
+  bank_number: '90101556073084'
+  tier: B
+- name: 사이라
+  role: 가이드
+  status: 계약종료
+  phone: ''
+  bank: 농협은행
+  bank_number: '3021618544581'
+  tier: C
+- name: 서고은
+  role: 가이드
+  status: 계약종료
+  phone: +82 10-4227-9176
+  bank: 국민은행
+  bank_number: 430502-01350-886
+  tier: D
+- name: 서에녹
+  role: 가이드
+  status: 활동 중
+  phone: ‭+82 10-4677-7662‬
+  bank: 카카오뱅크
+  bank_number: 3333-19-0529857
+  tier: B
+- name: 양신정
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-7422-9091
+  bank: 하나은행
+  bank_number: 542-910123-06207
+  tier: D
+- name: 어용수
+  role: 가이드
+  status: 계약종료
+  phone: ''
+  bank: 우리은행
+  bank_number: 148-148414-02-001
+  tier: Non
+- name: 올랴
+  role: 가이드
+  status: 일시중단
+  phone: +82 10-8320-8803‬
+  bank: 하나은행
+  bank_number: 223-910015-18404
+  tier: Non
+- name: 우광호
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-3366-2047‬
+  bank: 농협은행
+  bank_number: 018-1214-3864
+  tier: A
+- name: 유병직
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-7667-3146
+  bank: 우리은행
+  bank_number: '1002739155609'
+  tier: C
+- name: 유수현
+  role: 가이드
+  status: 일시중단
+  phone: +82 10-2722-8298
+  bank: 농협은행
+  bank_number: 302-0812-5350-11
+  tier: D
+- name: 윤수민
+  role: 가이드
+  status: 계약종료
+  phone: ‭+82 10-5148-5936‬
+  bank: 신한은행
+  bank_number: 110-358-662337
+  tier: Non
+- name: 이규희
+  role: 가이드
+  status: 계약종료
+  phone: ‭+82 10-7934-5120‬
+  bank: 신한은행
+  bank_number: 110-095390825
+  tier: Non
+- name: 이동우
+  role: 가이드
+  status: 계약종료
+  phone: ''
+  bank: 기업은행
+  bank_number: 01041363837
+  tier: C
+- name: 이상원
+  role: 가이드
+  status: 활동 중
+  phone: ‭+82 10-5141-6567‬
+  bank: 카카오뱅크
+  bank_number: '3333161993277'
+  tier: S
+- name: 이은영
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-3759-5561‬
+  bank: 신한은행
+  bank_number: 346 04 7300 94
+  tier: C
+- name: 장정은
+  role: 가이드
+  status: 일시중단
+  phone: ‭+82 10-3126-0059‬
+  bank: 하나은행
+  bank_number: 552 810107 59007
+  tier: S
+- name: 장혜림
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-2947-2966
+  bank: 우리은행
+  bank_number: '1002751336370'
+  tier: A
+- name: 전성경
+  role: 가이드
+  status: 계약종료
+  phone: ''
+  bank: 카카오뱅크
+  bank_number: 3333-24-0432000
+  tier: Non
+- name: 전희영
+  role: 가이드
+  status: 활동 중
+  phone: ‭+82 10-9049-1677‬
+  bank: 카카오뱅크
+  bank_number: '3333102307204'
+  tier: A
+- name: 정대영
+  role: 가이드
+  status: 계약종료
+  phone: ''
+  bank: 부산은행
+  bank_number: 249-12-028487-4
+  tier: Non
+- name: 정운석
+  role: 가이드
+  status: 계약종료
+  phone: ‭+82 10-9639-9388‬
+  bank: 우리은행
+  bank_number: '1002546226544'
+  tier: B
+- name: 정윤호
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-2609-4393
+  bank: 농협은행
+  bank_number: 352-1947-256783
+  tier: B
+- name: 정효원
+  role: 가이드
+  status: 계약종료
+  phone: ''
+  bank: 신한은행
+  bank_number: 110-429-632160
+  tier: Non
+- name: 제니
+  role: 가이드
+  status: 계약종료
+  phone: ''
+  bank: 농협은행
+  bank_number: 352-1873-9131-03
+  tier: D
+- name: 최진영
+  role: 가이드
+  status: 일시중단
+  phone: +82 10-3218-4933
+  bank: 국민은행
+  bank_number: 456702-01-292269
+  tier: Non
+- name: 캐서린
+  role: 가이드
+  status: 계약종료
+  phone: ''
+  bank: 국민은행
+  bank_number: 366501-01-156946
+  tier: B
+- name: 케이케이
+  role: 가이드
+  status: 일시중단
+  phone: ''
+  bank: 농협은행
+  bank_number: 302-1803-1521-21 WONG MUN KEI
+  tier: C
+- name: 한세은
+  role: 가이드
+  status: 활동 중
+  phone: ‭+82 10-9600-4059‬
+  bank: 우리은행
+  bank_number: '25620395412001'
+  tier: A
+- name: 현지우
+  role: 가이드
+  status: 일시중단
+  phone: ‭+82 10-5958-5783‬
+  bank: 카카오뱅크
+  bank_number: '3333208305162'
+  tier: C
+- name: 홍록관
+  role: 가이드
+  status: 계약종료
+  phone: +82 10-9011-3737
+  bank: ''
+  bank_number: ''
+  tier: B
+- name: 홍순명
+  role: 가이드
+  status: 활동 중
+  phone: ‭+82 10-5046-7659‬
+  bank: 우리은행
+  bank_number: 143-218535-02-101
+  tier: S
+- name: 김진영
+  role: 가이드
+  status: 일시중단
+  phone: +82 10-6267-1908
+  bank: 국민은행
+  bank_number: 440201-01-065142
+  tier: D
+- name: 베로니카
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-6515-4881
+  bank: 국민은행
+  bank_number: '82820104133172'
+  tier: Non
+  aliases:
+  - ＴＥＮＶＥＲＯＮＩ
+- name: 오원주 (모아관광)
+  role: 기사
+  status: 활동 중
+  phone: +82 10-3611-7899
+  bank: 국민은행
+  bank_number: '98340101015444'
+  tier: ''
+- name: 강학기
+  role: 기사
+  status: 활동 중
+  phone: +82 10-2646-8927
+  bank: 우리은행
+  bank_number: '50404835102005'
+  tier: ''
+- name: 곽현덕
+  role: 기사
+  status: 활동 중
+  phone: +82 10-2515-8274
+  bank: 카카오뱅크
+  bank_number: '3333015729123'
+  tier: ''
+- name: 양승용
+  role: 기사
+  status: 활동 중
+  phone: +82 10-3287-1270
+  bank: 국민은행
+  bank_number: '37370104083579'
+  tier: ''
+- name: 임채덕
+  role: 기사
+  status: 활동 중
+  phone: +82 10-5273-6345
+  bank: 하나은행
+  bank_number: '91491009412707'
+  tier: ''
+- name: 엄태웅
+  role: 기사
+  status: 활동 중
+  phone: +82 10-2332-0445
+  bank: 국민은행
+  bank_number: '84150204094992'
+  tier: ''
+- name: 최정규
+  role: 기사
+  status: 활동 중
+  phone: +82 10-7246-9086
+  bank: 국민은행
+  bank_number: '48970101405268'
+  tier: ''
+- name: 조원영
+  role: 기사
+  status: 활동 중
+  phone: +82 10-4470-0953
+  bank: 하나은행
+  bank_number: '10191043802407'
+  tier: ''
+- name: 예브게니
+  role: 기사
+  status: 활동 중
+  phone: ‭+82 10-6308-2201‬
+  bank: 국민은행
+  bank_number: '69760201312832'
+  tier: ''
+  aliases:
+  - LIYEVGENIY
+  - LI YEVGENTY
+- name: 미하일
+  role: 기사
+  status: 활동 중
+  phone: +82 10-5617-1322
+  bank: 신한은행
+  bank_number: '110479276656'
+  tier: ''
+  aliases:
+  - BUKURMIKH
+  - BUKRMIKHAIL
+- name: 슬라바
+  role: 기사
+  status: 활동 중
+  phone: +82 10-9185-3018
+  bank: 신한은행
+  bank_number: '100026239069'
+  tier: ''
+- name: 아파나시
+  role: 기사
+  status: 활동 중
+  phone: +82 10-4001-4399
+  bank: 농협은행
+  bank_number: '3124001439901'
+  tier: ''
+- name: 안톤
+  role: 기사
+  status: 일시중단
+  phone: +82 10-6520-9402
+  bank: 신한은행
+  bank_number: '110360015028'
+  tier: ''
+  aliases:
+  - CHA ANTON
+- name: 아나톨리
+  role: 기사
+  status: 활동 중
+  phone: +82 10-3098-1990
+  bank: 기업은행
+  bank_number: '63106971001019'
+  tier: ''
+- name: 조학용
+  role: 기사
+  status: 활동 중
+  phone: +82 10-3312-7553
+  bank: 신한은행
+  bank_number: '110497602745'
+  tier: ''
+- name: 니카
+  role: 기사
+  status: 일시중단
+  phone: +82 10-8474-8442‬
+  bank: 신한은행
+  bank_number: '110470041191'
+  tier: ''
+- name: 례브
+  role: 기사
+  status: 일시중단
+  phone: ‭+82 10-5641-3991‬
+  bank: 신한은행
+  bank_number: '110469593240'
+  tier: ''
+- name: 니콜라이
+  role: 기사
+  status: 일시중단
+  phone: ‭+82 10-6657-6777‬
+  bank: 국민은행
+  bank_number: '60480104458824'
+  tier: ''
+  aliases:
+  - TI NIKOLAY
+- name: 누르
+  role: 보조
+  status: 활동 중
+  phone: +82 10-9201-6664‬
+  bank: 신한은행
+  bank_number: '110532190059'
+  tier: ''
+  aliases:
+  - ＭＡＵＬＥＴＯＶＡ
+  - MAULETOVA AINUR
+- name: 힐롤라
+  role: 보조
+  status: 활동 중
+  phone: +82 10-5176-7723‬
+  bank: 국민은행
+  bank_number: '03760204133241'
+  tier: ''
+  aliases:
+  - SHOAZIZOVA
+  - SHOAZIZOVA KHILOLA
+- name: 미르
+  role: 보조
+  status: 활동 중
+  phone: +82 10-2712-2597‬
+  bank: 우리은행
+  bank_number: '1002462621105'
+  tier: ''
+  aliases:
+  - ＫＩＭＶＬＡＤＩＭ
+  - KIM VLADIM
+- name: 유택용(LIU ZELONG)
+  role: 보조
+  status: 활동 중
+  phone: +82 10-4481-2223
+  bank: 신한은행
+  bank_number: '110511348793'
+  tier: ''
+- name: 정다원
+  role: 보조
+  status: 활동 중
+  phone: +82 10-6737-5899
+  bank: 카카오뱅크
+  bank_number: '3333107875655'
+  tier: ''
+- name: 정도윤
+  role: 보조
+  status: 활동 중
+  phone: +82 10-2675-5899
+  bank: 국민은행
+  bank_number: '27140204118440'
+  tier: ''
+- name: 홍승민
+  role: 보조
+  status: 활동 중
+  phone: +82 10-9505-9794
+  bank: 카카오뱅크
+  bank_number: '3333065713894'
+  tier: ''
+- name: 한승연
+  role: 보조
+  status: 일시중단
+  phone: +82 10-8937-7378‬
+  bank: 우리은행
+  bank_number: '1002151315811'
+  tier: ''
+- name: 하루
+  role: 보조
+  status: 일시중단
+  phone: +82 10-2270-9905‬
+  bank: 토스뱅크
+  bank_number: '100047049461'
+  tier: ''
+  aliases:
+  - SISSENBAYE GAUHAR
+- name: 이한아
+  role: 보조
+  status: 일시중단
+  phone: +82 10-6426-3060‬
+  bank: 국민은행
+  bank_number: 02480204066794
+  tier: ''
+- name: 노승주
+  role: 보조
+  status: 일시중단
+  phone: +82 10-9922-0123‬
+  bank: 카카오뱅크
+  bank_number: 3333-04-7887206
+  tier: ''
+- name: 김태연
+  role: 보조
+  status: 일시중단
+  phone: +82 10-4562-2135
+  bank: 우리은행
+  bank_number: '1002846311893'
+  tier: ''
+- name: 남창준
+  role: 보조
+  status: 일시중단
+  phone: +82 10-2497-6875‬
+  bank: 신한은행
+  bank_number: '110541294949'
+  tier: ''
+- name: 김율리야
+  role: 보조
+  status: 일시중단
+  phone: ‭+82 10-9786-6003‬
+  bank: 국민은행
+  bank_number: '91800101393964'
+  tier: ''
+- name: 나제르케
+  role: 보조
+  status: 일시중단
+  phone: ''
+  bank: 농협은행
+  bank_number: '3521698016453'
+  tier: ''
+- name: 올렉
+  role: 보조
+  status: 일시중단
+  phone: ''
+  bank: 하나은행
+  bank_number: '27891098560907'
+  tier: ''
+- name: 디나
+  role: 보조
+  status: 일시중단
+  phone: ''
+  bank: 우리은행
+  bank_number: '1002662089367'
+  tier: ''
+- name: 폴리나
+  role: 보조
+  status: 일시중단
+  phone: ''
+  bank: 신한은행
+  bank_number: '110538351760'
+  tier: ''
+- name: 권소희
+  role: 보조
+  status: 일시중단
+  phone: ''
+  bank: 국민은행
+  bank_number: 00990104174039
+  tier: ''
+- name: 김아나
+  role: 보조
+  status: 일시중단
+  phone: ''
+  bank: 하나은행
+  bank_number: '28891060774907'
+  tier: ''
+- name: 문규진
+  role: 기사
+  status: 활동 중
+  phone: +82 10-91642566
+  bank: 신한은행
+  bank_number: 324-12-242090
+  tier: ''
+- name: 이각훈
+  role: 기사
+  status: 활동 중
+  phone: +82 10-3537-3901
+  bank: 신한은행
+  bank_number: 110-486-376430
+  tier: ''
+- name: 알렉산더
+  role: 기사
+  status: 활동 중
+  phone: +82 10 5593-2481
+  bank: ''
+  bank_number: ''
+  tier: ''
+- name: 이상일
+  role: 기사
+  status: 활동 중
+  phone: +82 10-4414-6031
+  bank: ''
+  bank_number: ''
+  tier: ''
+- name: 배재기_(주)하나월드여행사
+  role: 기사
+  status: 활동 중
+  phone: 01047678866
+  bank: 기업은행
+  bank_number: 626-084665-04-014
+  tier: A
+- name: 김경규
+  role: 기사
+  status: 활동 중
+  phone: +82 10-3613-2243
+  bank: 국민은행
+  bank_number: 026240140509
+  tier: ''
+- name: 최한나
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-9822-1220
+  bank: 농협은행
+  bank_number: '3020943968571'
+  tier: ''
+- name: 권혁철
+  role: 기사
+  status: 활동 중
+  phone: +82 10-3210-2312
+  bank: 국민은행
+  bank_number: '50320201013692'
+  tier: ''
+- name: 한흥영
+  role: 기사
+  status: 활동 중
+  phone: +82 10-3247-5306
+  bank: 국민은행
+  bank_number: '43920292112711'
+  tier: B
+- name: 이선민
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-5354-4696
+  bank: 기업은행
+  bank_number: 010-5354-4696
+  tier: Non
+- name: 김철완
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-6723-9723
+  bank: 우체국
+  bank_number: 01015702007428
+  tier: Non
+- name: 이현규
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-4260-0440
+  bank: 카카오뱅크
+  bank_number: 3333-06-1897605
+  tier: Non
+- name: 한정민
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-8789-0962
+  bank: 하나은행
+  bank_number: '74891102539907'
+  tier: Non
+- name: 최장호
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-4116-9586
+  bank: 농협은행
+  bank_number: 2210 2551 024 130
+  tier: Non
+- name: 이영학
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-4283-2625
+  bank: 우리은행
+  bank_number: '41200925702001'
+  tier: Non
+- name: 김선식
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-6238-1941
+  bank: ''
+  bank_number: ''
+  tier: Non
+- name: 조정빈
+  role: 기사
+  status: 활동 중
+  phone: +82 10-3987-6622
+  bank: 카카오뱅크
+  bank_number: '3333042086618'
+  tier: A
+- name: 조대석
+  role: 기사
+  status: 활동 중
+  phone: +82 10-2540-2322
+  bank: 카카오뱅크
+  bank_number: 3333-18-0613571
+  tier: ''
+- name: 송선희
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-8419-6003
+  bank: 카카오뱅크
+  bank_number: '3333029239014'
+  tier: ''
+- name: 이경수
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-3610-6242
+  bank: 신한은행
+  bank_number: '110253950340'
+  tier: Non
+- name: 김태성
+  role: 가이드
+  status: 활동 중
+  phone: +82 10-9676-4490
+  bank: 하나은행
+  bank_number: '23391044586907'
+  tier: ''
+- name: 김승수
+  role: 기사
+  status: 활동 중
+  phone: +82 10-8487-6385
+  bank: 카카오뱅크
+  bank_number: 3333-07-5345392
+  tier: ''
+- name: 알렉산더 김
+  role: 기사
+  status: 활동 중
+  phone: +82 10-8354-3990
+  bank: ''
+  bank_number: ''
+  tier: ''
+- name: 주성계
+  role: 기사
+  status: 활동 중
+  phone: +82 10-5382-6611
+  bank: ''
+  bank_number: ''
+  tier: Non
+- name: 유택용
+  role: 보조
+  status: 활동 중
+  phone: ''
+  bank: ''
+  bank_number: ''
+  tier: ''
+  aliases:
+  - LIU ZELONG

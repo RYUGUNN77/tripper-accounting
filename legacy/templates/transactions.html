@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <title>거래내역 — 회계 분석</title>
+    <style>
+        :root {
+            --primary: #2563eb; --primary-dark: #1d4ed8;
+            --success: #16a34a; --danger: #dc2626; --warning: #d97706;
+            --bg: #f1f5f9; --card: #ffffff; --text: #1e293b;
+            --text-light: #64748b; --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+        /* nav CSS removed — using sidebar */
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+
+        /* KPI 요약 바 */
+        .kpi-bar {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.8rem;
+            margin-bottom: 1rem;
+        }
+        .kpi-item {
+            background: var(--card); padding: 0.8rem 1rem; border-radius: 12px;
+            box-shadow: var(--shadow); text-align: center;
+            border-left: 4px solid transparent; transition: transform 0.15s;
+        }
+        .kpi-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .kpi-label { font-size: 0.75rem; font-weight: 600; color: var(--text-light); margin-bottom: 0.2rem; }
+        .kpi-value { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .kpi-income { border-left-color: var(--success); }
+        .kpi-income .kpi-value { color: var(--success); }
+        .kpi-expense { border-left-color: var(--danger); }
+        .kpi-expense .kpi-value { color: var(--danger); }
+        .kpi-net { border-left-color: var(--primary); }
+        .kpi-net .kpi-value { color: var(--primary); }
+        .kpi-count { border-left-color: var(--warning); }
+        .kpi-count .kpi-value { color: var(--warning); }
+        .kpi-avg { border-left-color: #8b5cf6; }
+        .kpi-avg .kpi-value { color: #8b5cf6; }
+
+        /* 활성 필터 태그 */
+        .active-filters {
+            display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+            background: #fffbeb; padding: 0.5rem 1rem; border-radius: 10px;
+            margin-bottom: 0.8rem; border: 1px solid #fde68a;
+        }
+        .af-label { font-size: 0.78rem; font-weight: 600; color: #92400e; white-space: nowrap; }
+        .af-tags { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+        .af-tag {
+            display: inline-flex; align-items: center; gap: 3px;
+            background: #fef3c7; color: #92400e; padding: 0.2rem 0.6rem;
+            border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+        }
+        .af-tag .af-x {
+            cursor: pointer; font-size: 0.7rem; opacity: 0.6; margin-left: 2px;
+        }
+        .af-tag .af-x:hover { opacity: 1; }
+        .af-clear {
+            margin-left: auto; background: none; border: 1px solid #d97706; color: #d97706;
+            padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600;
+            cursor: pointer; white-space: nowrap;
+        }
+        .af-clear:hover { background: #d97706; color: white; }
+
+        /* 필터 바 */
+        .filter-bar {
+            display:flex; gap:.4rem .6rem; align-items:center; flex-wrap:wrap;
+            background:var(--card); padding:.7rem 1.2rem; border-radius:12px;
+            box-shadow:var(--shadow); margin-bottom:.5rem;
+        }
+        .filter-group { display:flex; align-items:center; gap:.3rem; }
+        .filter-sep { width:1px; height:24px; background:var(--border); margin:0 .1rem; flex-shrink:0; }
+
+        .filter-bar select {
+            padding:.32rem .5rem; border:2px solid var(--border); border-radius:8px;
+            font-size:.8rem; background:#fff; outline:none; cursor:pointer; max-width:130px;
+        }
+        .filter-bar select:focus { border-color:var(--primary); }
+
+        /* 프리셋 */
+        .tx-presets { display:flex; gap:2px; }
+        .tx-preset {
+            padding:.3rem .6rem; border:2px solid var(--border); border-radius:7px; background:#fff;
+            cursor:pointer; font-size:.76rem; font-weight:600; color:var(--text-light); transition:all .12s;
+        }
+        .tx-preset:hover { border-color:var(--primary); color:var(--primary); }
+        .tx-preset.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+        /* 토글 버튼 */
+        .toggle-group { display:flex; gap:2px; }
+        .toggle-btn {
+            padding:.28rem .5rem; border:2px solid var(--border); border-radius:7px; background:#fff;
+            cursor:pointer; font-size:.76rem; font-weight:600; color:var(--text-light); transition:all .1s;
+            white-space:nowrap;
+        }
+        .toggle-btn:hover { border-color:var(--primary); color:var(--primary); }
+        .toggle-btn.active { background:var(--tbg, var(--primary)); color:var(--tfg, #fff); border-color:var(--tfg, var(--primary)); }
+        .toggle-btn.t-income.active { background:#dcfce7; color:#166534; border-color:#16a34a; }
+        .toggle-btn.t-expense.active { background:#fee2e2; color:#991b1b; border-color:#dc2626; }
+
+        /* 검색 */
+        .search-wrap {
+            display:flex; align-items:center; gap:.5rem; padding:0 .7rem;
+            border:2px solid var(--border); border-radius:8px; background:#fff;
+            height:32px; transition:border-color .15s;
+        }
+        .search-wrap:focus-within { border-color:var(--primary); }
+        .search-svg { width:15px; height:15px; flex-shrink:0; color:var(--text-light); opacity:.45; }
+        .search-input {
+            border:none; outline:none; font-size:.82rem; width:100%; background:transparent;
+            height:100%; padding:0; margin:0;
+        }
+
+        /* 날짜/금액 입력 */
+        .date-input {
+            padding:.28rem .5rem; border:2px solid var(--border); border-radius:8px;
+            font-size:.8rem; background:#fff; outline:none; height:32px;
+        }
+        .date-input:focus { border-color:var(--primary); }
+        .amount-input {
+            width:82px; padding:.28rem .5rem; border:2px solid var(--border); border-radius:8px;
+            font-size:.8rem; background:#fff; outline:none; height:32px;
+        }
+        .amount-input:focus { border-color:var(--primary); }
+
+        .reset-btn {
+            padding:.3rem .6rem; border:2px solid var(--border); border-radius:8px;
+            background:#fff; cursor:pointer; font-size:.76rem; font-weight:600; color:var(--text-light);
+            transition:all .12s;
+        }
+        .reset-btn:hover { border-color:var(--danger); color:var(--danger); }
+        .count-badge {
+            margin-left:auto; background:#eff6ff; color:var(--primary);
+            padding:.25rem .6rem; border-radius:6px; font-weight:600; font-size:.82rem; white-space:nowrap;
+        }
+
+        /* 테이블 */
+        .table-card { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        thead { background: #f8fafc; }
+        th { text-align: left; font-size: 0.78rem; color: var(--text-light); padding: 0.8rem; font-weight: 600; border-bottom: 2px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
+        th:hover { color: var(--primary); }
+        th .arr { font-size: 0.65rem; margin-left: 2px; }
+        td { padding: 0.6rem 0.8rem; font-size: 0.85rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        tr:hover td { background: #f8fafc; }
+        .amount { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .amt-in { color: var(--success); }
+        .amt-out { color: var(--danger); }
+
+        .badge { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+
+        /* 분류 셀 */
+        .cat-cell { cursor: pointer; position: relative; white-space: nowrap; }
+        .cat-cell:hover { background: #eff6ff !important; }
+        .cat-inner { display: flex; align-items: center; gap: 4px; }
+        .cat-inner .ico { opacity: 0; font-size: 0.65rem; color: var(--text-light); transition: opacity 0.15s; }
+        .cat-cell:hover .ico { opacity: 1; }
+
+        /* ===== 모달 오버레이 ===== */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+            z-index: 500; justify-content: center; align-items: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: white; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+            width: 520px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;
+        }
+        .modal-header {
+            padding: 1rem 1.2rem; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .modal-header h3 { font-size: 1rem; font-weight: 700; }
+        .modal-close { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: var(--text-light); padding: 0.2rem; }
+        .modal-close:hover { color: var(--text); }
+        .modal-body { padding: 0.8rem 1.2rem; overflow-y: auto; flex: 1; }
+        .modal-footer { padding: 0.8rem 1.2rem; border-top: 1px solid var(--border); }
+
+        /* 모달 내 탭 */
+        .tab-bar { display: flex; gap: 0; margin-bottom: 0.8rem; border-bottom: 2px solid var(--border); }
+        .tab-btn {
+            padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+            border: none; background: none; color: var(--text-light);
+            border-bottom: 2px solid transparent; margin-bottom: -2px;
+        }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-btn:hover { color: var(--primary); }
+
+        /* 카테고리 목록 */
+        .cat-section { margin-bottom: 0.6rem; }
+        .cat-section-title {
+            display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0;
+            font-size: 0.8rem; font-weight: 700; color: var(--text-light);
+        }
+        .cat-list { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.3rem 0; }
+        .cat-chip {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 0.35rem 0.7rem; border-radius: 8px; font-size: 0.82rem;
+            font-weight: 500; cursor: pointer; border: 2px solid transparent;
+            transition: all 0.15s;
+        }
+        .cat-chip:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); transform: translateY(-1px); }
+        .cat-chip.selected { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
+        .cat-chip .del-x {
+            font-size: 0.7rem; color: inherit; opacity: 0.5; margin-left: 2px; cursor: pointer;
+        }
+        .cat-chip .del-x:hover { opacity: 1; }
+        .cat-chip .color-dot {
+            width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1);
+            cursor: pointer;
+        }
+
+        /* 추가 폼 */
+        .add-row {
+            display: flex; gap: 0.4rem; align-items: center; margin-top: 0.5rem;
+            padding: 0.6rem; background: #f8fafc; border-radius: 10px;
+        }
+        .add-row input[type="text"] {
+            flex: 1; padding: 0.4rem 0.6rem; border: 2px solid var(--border);
+            border-radius: 8px; font-size: 0.85rem; outline: none;
+        }
+        .add-row input[type="text"]:focus { border-color: var(--primary); }
+        /* 색상 팔레트 */
+        .color-palette { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0; }
+        .color-swatch {
+            width: 22px; height: 22px; border-radius: 6px; cursor: pointer;
+            border: 2px solid transparent; transition: all 0.1s;
+        }
+        .color-swatch:hover { transform: scale(1.15); }
+        .color-swatch.active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.3); }
+        .color-picker-wrap { position: relative; display: inline-block; }
+        .color-picker-dropdown {
+            display: none; position: fixed;
+            background: white; border-radius: 10px;
+            padding: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.22); z-index: 600;
+            width: 200px;
+        }
+        .color-picker-dropdown.show { display: block; }
+        .color-trigger {
+            width: 26px; height: 26px; border-radius: 6px; cursor: pointer;
+            border: 2px solid var(--border); display: inline-block;
+        }
+        .color-trigger:hover { border-color: var(--primary); }
+        .add-row select {
+            padding: 0.4rem 0.5rem; border: 2px solid var(--border); border-radius: 8px;
+            font-size: 0.85rem; background: white;
+        }
+        .btn-add {
+            padding: 0.4rem 0.8rem; border: none; border-radius: 8px;
+            background: var(--primary); color: white; font-size: 0.82rem;
+            font-weight: 600; cursor: pointer; white-space: nowrap;
+        }
+        .btn-add:hover { background: var(--primary-dark); }
+
+        /* 대분류 선택 (모달 모드=major) */
+        .major-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem; padding: 0.5rem 0; }
+        .major-card {
+            padding: 1rem; border-radius: 12px; cursor: pointer; text-align: center;
+            font-weight: 700; font-size: 0.95rem; border: 3px solid transparent;
+            transition: all 0.15s;
+        }
+        .major-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .major-card.selected { border-color: var(--primary); }
+
+        .empty { text-align: center; padding: 3rem; color: var(--text-light); }
+        .empty a { color: var(--primary); }
+        .loading { text-align: center; padding: 3rem; color: var(--text-light); }
+
+        /* 상세 모달 */
+        .detail-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+            z-index: 500; justify-content: center; align-items: center;
+        }
+        .detail-overlay.show { display: flex; }
+        .detail-modal {
+            background: white; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+            width: 480px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;
+        }
+        .detail-header {
+            padding: 1rem 1.2rem; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .detail-header h3 { font-size: 1rem; font-weight: 700; }
+        .detail-body { padding: 1rem 1.2rem; overflow-y: auto; flex: 1; }
+        .detail-row {
+            display: flex; padding: 0.55rem 0; border-bottom: 1px solid #f1f5f9;
+            font-size: 0.88rem;
+        }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-label {
+            width: 100px; flex-shrink: 0; color: var(--text-light); font-weight: 600;
+            font-size: 0.82rem;
+        }
+        .detail-value { flex: 1; word-break: break-all; }
+        .detail-value.amt-in { color: var(--success); font-weight: 600; }
+        .detail-value.amt-out { color: var(--danger); font-weight: 600; }
+
+        /* 자체이체 흐름 표시 */
+        .transfer-flow {
+            display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+        }
+        .match-account {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 5px 10px; border-radius: 8px;
+            background: #f1f5f9; border: 1px solid #e2e8f0;
+            color: #334155; font-size: 0.82rem; font-weight: 500;
+        }
+        .match-account.from {
+            background: #fef2f2; border-color: #fecaca; color: #991b1b;
+        }
+        .match-account.to {
+            background: #f0fdf4; border-color: #bbf7d0; color: #166534;
+        }
+        .match-account-num {
+            margin-left: 6px; padding: 2px 7px; border-radius: 4px;
+            background: rgba(0,0,0,.06); font-size: 0.76rem;
+            font-family: 'SF Mono', 'Consolas', monospace; letter-spacing: 0.5px;
+        }
+        .match-account.from .match-account-num {
+            background: #fee2e2; color: #b91c1c;
+        }
+        .match-account.to .match-account-num {
+            background: #dcfce7; color: #15803d;
+        }
+        .match-account.unknown {
+            background: #f8fafc; border: 1px dashed #cbd5e1; color: #94a3b8;
+            font-size: 0.82rem; font-weight: 600; min-width: 28px;
+            justify-content: center;
+        }
+
+        /* 클릭 가능 행 */
+        tr[data-txid] { cursor: pointer; }
+
+        /* 시스템 태그 */
+        .sys-tag {
+            display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px;
+            font-size: 0.65rem; font-weight: 600; vertical-align: middle;
+            margin-left: 3px;
+        }
+        .sys-tag.auto { background: #dbeafe; color: #1d4ed8; }
+        .sys-tag.transfer { background: #e0e7ff; color: #3730a3; }
+        .sys-tag.card-pay { background: #fce7f3; color: #9d174d; }
+        .sys-tag.temp-in { background: #fff7ed; color: #9a3412; }
+        .sys-tag.temp-out { background: #ecfdf5; color: #065f46; }
+
+        /* 메모 툴팁 */
+        .memo-indicator {
+            display: inline-block; position: relative; cursor: default;
+            width: 18px; height: 18px; line-height: 18px; text-align: center;
+            background: #fef3c7; color: #92400e; border-radius: 4px;
+            font-size: 0.65rem; font-weight: 700; vertical-align: middle;
+            margin-left: 3px;
+        }
+        .memo-indicator .memo-tip {
+            display: none; position: absolute; bottom: calc(100% + 6px); left: 50%;
+            transform: translateX(-50%); background: #1e293b; color: white;
+            padding: 0.4rem 0.7rem; border-radius: 8px; font-size: 0.8rem;
+            font-weight: 400; white-space: nowrap; max-width: 300px;
+            overflow: hidden; text-overflow: ellipsis; z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .memo-indicator .memo-tip::after {
+            content: ''; position: absolute; top: 100%; left: 50%;
+            transform: translateX(-50%); border: 5px solid transparent;
+            border-top-color: #1e293b;
+        }
+        .memo-indicator:hover .memo-tip { display: block; }
+
+        /* 상세 모달 메모 편집 */
+        .memo-edit-row {
+            display: flex; gap: 0.5rem; align-items: center; margin-top: 0.3rem;
+        }
+        .memo-edit-row textarea {
+            flex: 1; padding: 0.5rem; border: 2px solid var(--border); border-radius: 8px;
+            font-size: 0.85rem; font-family: inherit; resize: vertical; min-height: 60px;
+            outline: none;
+        }
+        .memo-edit-row textarea:focus { border-color: var(--primary); }
+        .memo-save-btn {
+            padding: 0.4rem 0.8rem; border: none; border-radius: 8px;
+            background: var(--primary); color: white; font-size: 0.82rem;
+            font-weight: 600; cursor: pointer; white-space: nowrap; align-self: flex-end;
+        }
+        .memo-save-btn:hover { background: var(--primary-dark); }
+
+        .toast {
+            position: fixed; bottom: 20px; right: 20px; padding: 0.8rem 1.2rem;
+            background: #065f46; color: white; border-radius: 10px; font-size: 0.9rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 999; opacity: 0;
+            transition: opacity 0.3s; pointer-events: none;
+            display: flex; align-items: center; gap: 0.8rem; max-width: 420px;
+        }
+        .toast.show { opacity: 1; pointer-events: auto; }
+        .toast .undo-btn {
+            background: rgba(255,255,255,0.2); color: #fef3c7; border: 1px solid rgba(255,255,255,0.35);
+            border-radius: 6px; padding: 0.25rem 0.7rem; font-size: 0.82rem; font-weight: 600;
+            cursor: pointer; white-space: nowrap; transition: background 0.15s;
+        }
+        .toast .undo-btn:hover { background: rgba(255,255,255,0.35); }
+        .toast .toast-msg { flex: 1; }
+        .toast .toast-timer {
+            position: absolute; bottom: 0; left: 0; height: 3px; background: rgba(255,255,255,0.4);
+            border-radius: 0 0 10px 10px; animation: toast-shrink linear forwards;
+        }
+        @keyframes toast-shrink { from { width: 100%; } to { width: 0%; } }
+
+        @media (max-width: 1200px) {
+            .kpi-bar { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (max-width: 768px) {
+            /* nav media queries removed — using sidebar */
+            .container { padding: 0.8rem; }
+            .modal { width: 95vw; }
+            .filter-bar { padding: 0.6rem 0.8rem; gap: 0.4rem; }
+            .filter-bar select { max-width: 100px; }
+            .filter-bar input[type="text"] { width: 90px; }
+            .filter-bar input[type="number"] { width: 60px; }
+            .kpi-bar { grid-template-columns: repeat(2, 1fr); }
+            .kpi-value { font-size: 0.95rem; }
+        }
+    </style>
+</head>
+<body>
+{% include '_sidebar.html' %}
+
+    <div class="container">
+        {% if not has_data %}
+        <div class="empty"><p>아직 데이터가 없습니다. <a href="/data">파일을 업로드</a>해주세요.</p></div>
+        {% else %}
+
+        <!-- KPI 요약 바 -->
+        <div class="kpi-bar" id="kpiBar">
+            <div class="kpi-item kpi-income"><div class="kpi-label">입금 합계</div><div class="kpi-value" id="kpiIncome">0원</div></div>
+            <div class="kpi-item kpi-expense"><div class="kpi-label">출금 합계</div><div class="kpi-value" id="kpiExpense">0원</div></div>
+            <div class="kpi-item kpi-net"><div class="kpi-label">순이익</div><div class="kpi-value" id="kpiNet">0원</div></div>
+            <div class="kpi-item kpi-count"><div class="kpi-label">거래 건수</div><div class="kpi-value" id="kpiCount">0건</div></div>
+            <div class="kpi-item kpi-avg"><div class="kpi-label">평균 거래액</div><div class="kpi-value" id="kpiAvg">0원</div></div>
+        </div>
+
+        <!-- 활성 필터 태그 -->
+        <div class="active-filters" id="activeFilters" style="display:none">
+            <span class="af-label">활성 필터:</span>
+            <div class="af-tags" id="afTags"></div>
+            <button class="af-clear" onclick="resetFilters()">전체 해제</button>
+        </div>
+
+        <!-- 필터 1행: 기간 + 검색 -->
+        <div class="filter-bar">
+            <div class="tx-presets" id="presetGroup">
+                <button class="tx-preset" data-n="1">1개월</button>
+                <button class="tx-preset" data-n="3">3개월</button>
+                <button class="tx-preset" data-n="6">6개월</button>
+                <button class="tx-preset" data-n="12">1년</button>
+                <button class="tx-preset active" data-n="0">전체</button>
+            </div>
+            <div class="filter-sep"></div>
+            <div class="filter-group">
+                <select id="monthFrom">{% for m in months %}<option value="{{ m }}" {% if loop.last %}selected{% endif %}>{{ m }}</option>{% endfor %}</select>
+                <span style="color:var(--text-light);font-size:.85rem">~</span>
+                <select id="monthTo">{% for m in months %}<option value="{{ m }}">{{ m }}</option>{% endfor %}</select>
+            </div>
+            <div class="filter-group">
+                <input type="date" id="dateFilter" class="date-input" title="특정 날짜 필터">
+            </div>
+            <div class="filter-sep"></div>
+            <div class="search-wrap" style="flex:1;min-width:140px;max-width:320px">
+                <svg class="search-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="searchInput" placeholder="적요, 거래처 검색..." class="search-input">
+            </div>
+            <button class="reset-btn" onclick="resetFilters()">↺ 초기화</button>
+            <div class="count-badge"><span id="totalCount">0</span>건</div>
+        </div>
+
+        <!-- 필터 2행: 분류 토글 -->
+        <div class="filter-bar" style="padding:.55rem 1.2rem">
+            <div class="toggle-group" data-filter="direction">
+                <button class="toggle-btn active" data-val="전체">전체</button>
+                <button class="toggle-btn t-income" data-val="입금">입금</button>
+                <button class="toggle-btn t-expense" data-val="출금">출금</button>
+            </div>
+            <div class="filter-sep"></div>
+            <div class="toggle-group" data-filter="category" id="catToggles">
+                <button class="toggle-btn active" data-val="전체">전체</button>
+                <button class="toggle-btn" data-val="고정비" style="--tbg:#f3e8ff;--tfg:#7c3aed">고정비</button>
+                <button class="toggle-btn" data-val="변동비" style="--tbg:#fef3c7;--tfg:#b45309">변동비</button>
+                <button class="toggle-btn" data-val="수입" style="--tbg:#dcfce7;--tfg:#166534">수입</button>
+                <button class="toggle-btn" data-val="자체이체" style="--tbg:#e0e7ff;--tfg:#3730a3">자체이체</button>
+                <button class="toggle-btn" data-val="카드대금" style="--tbg:#fce7f3;--tfg:#9d174d">카드대금</button>
+                <button class="toggle-btn" data-val="가수금" style="--tbg:#fff7ed;--tfg:#9a3412">가수금</button>
+                <button class="toggle-btn" data-val="가지급금" style="--tbg:#ecfdf5;--tfg:#065f46">가지급금</button>
+                <button class="toggle-btn" data-val="미분류" style="--tbg:#fee2e2;--tfg:#991b1b">미분류</button>
+            </div>
+            <div class="filter-sep"></div>
+            <select id="selSubCategory"><option value="전체">중분류: 전체</option></select>
+            <div class="filter-sep"></div>
+            <div class="toggle-group" data-filter="txtype">
+                <button class="toggle-btn active" data-val="전체">전체</button>
+                <button class="toggle-btn" data-val="통장">통장</button>
+                <button class="toggle-btn" data-val="카드">카드</button>
+                <button class="toggle-btn" data-val="현금">현금</button>
+            </div>
+            <div class="filter-sep"></div>
+            <select id="selTag"><option value="전체">태그: 전체</option><option value="자동">자동분류</option><option value="메모">메모있음</option><option value="태그없음">태그없음</option></select>
+            <div class="filter-sep"></div>
+            <input type="number" id="amountMin" placeholder="최소 금액" class="amount-input">
+            <span style="color:var(--text-light);font-size:.8rem">~</span>
+            <input type="number" id="amountMax" placeholder="최대 금액" class="amount-input">
+        </div>
+
+        <!-- 테이블 -->
+        <div class="table-card">
+            <div class="table-wrap">
+                <table>
+                    <thead><tr>
+                        <th onclick="toggleSort('거래일자')">날짜 <span class="arr" id="arr-거래일자"></span></th>
+                        <th>유형</th>
+                        <th>적요</th>
+                        <th>거래처</th>
+                        <th onclick="toggleSort('입금액')" style="text-align:right">입금 <span class="arr" id="arr-입금액"></span></th>
+                        <th onclick="toggleSort('출금액')" style="text-align:right">출금 <span class="arr" id="arr-출금액"></span></th>
+                        <th>대분류</th>
+                        <th>중분류</th>
+                    </tr></thead>
+                    <tbody id="txBody"><tr><td colspan="8" class="loading">불러오는 중...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 분류 편집 모달 -->
+        <div class="modal-overlay" id="catModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 id="modalTitle">분류 편집</h3>
+                    <button class="modal-close" onclick="closeModal()">&times;</button>
+                </div>
+                <div id="applyAllBar" style="display:none; padding:0.7rem 1.2rem; background:#fffbeb; border-bottom:1px solid #fde68a; font-size:0.85rem;">
+                    <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+                        <input type="checkbox" id="applyAllCheck" style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer">
+                        <span>같은 적요 <strong id="applyAllDesc" style="color:var(--primary)"></strong> 거래 <strong id="applyAllCount" style="color:var(--danger)"></strong>건에 모두 적용</span>
+                    </label>
+                </div>
+                <div class="modal-body" id="modalBody"></div>
+            </div>
+        </div>
+
+        <!-- 거래 상세 모달 -->
+        <div class="detail-overlay" id="detailModal">
+            <div class="detail-modal">
+                <div class="detail-header">
+                    <h3>거래 상세</h3>
+                    <button class="modal-close" onclick="closeDetail()">&times;</button>
+                </div>
+                <div class="detail-body" id="detailBody"></div>
+            </div>
+        </div>
+
+        <div id="toast" class="toast"></div>
+
+        <script>
+        const _applyAllDefault = {{ 'true' if settings.transactions.apply_same_desc_checked else 'false' }};
+        // ===== State =====
+        let sortCol = '거래일자', sortDir = 'desc';
+        let catTree = {};
+        let catColors = {};
+        let editTxId = '', editCurrentMajor = '', editCurrentMinor = '';
+        let rowDataMap = {};
+
+        // ===== 필터 상태 (단일 진실 소스) =====
+        const F = {
+            from: '', to: '', date: '',
+            direction: '전체', category: '전체', subcategory: '전체',
+            txtype: '전체', tag: '전체', q: '',
+            amountMin: '', amountMax: ''
+        };
+
+        // ===== Elements =====
+        const $ = id => document.getElementById(id);
+        const elFrom = $('monthFrom'), elTo = $('monthTo');
+        const elSearch = $('searchInput');
+        const elAmtMin = $('amountMin'), elAmtMax = $('amountMax');
+        const elSubCat = $('selSubCategory');
+        const elTag = $('selTag');
+        const elDateFilter = $('dateFilter');
+        const elBody = $('txBody');
+
+        // 사용 가능한 월 목록 (오름차순)
+        const _txMonths = [{% for m in months %}'{{ m }}',{% endfor %}].sort();
+
+        // ===== 토글 그룹 이벤트 (이벤트 위임) =====
+        document.querySelectorAll('.toggle-group').forEach(grp => {
+            grp.addEventListener('click', e => {
+                const btn = e.target.closest('.toggle-btn');
+                if (!btn) return;
+                grp.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const filterName = grp.dataset.filter;
+                const val = btn.dataset.val;
+                F[filterName] = val;
+                if (filterName === 'category') updateSubCategoryFilter();
+                fetchData();
+            });
+        });
+
+        // 토글 그룹을 상태값으로 동기화
+        function syncToggle(filterName, val) {
+            const grp = document.querySelector(`.toggle-group[data-filter="${filterName}"]`);
+            if (!grp) return;
+            grp.querySelectorAll('.toggle-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.val === val);
+            });
+            F[filterName] = val;
+        }
+
+        // ===== 프리셋 (이벤트 위임) =====
+        $('presetGroup').addEventListener('click', e => {
+            const btn = e.target.closest('.tx-preset');
+            if (!btn) return;
+            $('presetGroup').querySelectorAll('.tx-preset').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const n = parseInt(btn.dataset.n);
+            if (n === 0) {
+                elFrom.value = _txMonths[0];
+                elTo.value = _txMonths[_txMonths.length - 1];
+            } else {
+                elTo.value = _txMonths[_txMonths.length - 1];
+                const idx = Math.max(0, _txMonths.length - n);
+                elFrom.value = _txMonths[idx];
+            }
+            elDateFilter.value = '';
+            F.date = '';
+            fetchData();
+        });
+
+        // ===== URL 파라미터 → 필터 자동적용 =====
+        let _pendingSubCat = '';
+        (function applyUrlParams() {
+            const p = new URLSearchParams(window.location.search);
+            if (p.get('date')) { elDateFilter.value = p.get('date'); F.date = p.get('date'); const m = p.get('date').substring(0,7); elFrom.value = m; elTo.value = m; }
+            if (p.get('month')) { elFrom.value = p.get('month'); elTo.value = p.get('month'); }
+            if (p.get('from')) elFrom.value = p.get('from');
+            if (p.get('to')) elTo.value = p.get('to');
+            if (p.get('category')) syncToggle('category', p.get('category'));
+            if (p.get('subcategory')) _pendingSubCat = p.get('subcategory');
+            if (p.get('type') === '입금' || p.get('type') === '출금') syncToggle('direction', p.get('type'));
+            if (p.get('direction')) syncToggle('direction', p.get('direction'));
+            if (p.get('txtype')) syncToggle('txtype', p.get('txtype'));
+            if (p.get('q')) elSearch.value = p.get('q');
+            if (window.location.search) window.history.replaceState({}, '', window.location.pathname);
+        })();
+
+        // ===== Events =====
+        [elFrom, elTo, elTag, elSubCat].forEach(el => el.addEventListener('change', fetchData));
+        elDateFilter.addEventListener('change', () => { F.date = elDateFilter.value; fetchData(); });
+        [elAmtMin, elAmtMax].forEach(el => el.addEventListener('change', fetchData));
+        let _st; elSearch.addEventListener('input', () => { clearTimeout(_st); _st = setTimeout(fetchData, 300); });
+        $('catModal').addEventListener('click', e => { if (e.target === $('catModal')) closeModal(); });
+
+        // ===== Fetch =====
+        function fetchData() {
+            const p = new URLSearchParams();
+            if (elDateFilter.value) {
+                p.set('date', elDateFilter.value);
+            } else {
+                if (elFrom.value) p.set('from', elFrom.value);
+                if (elTo.value) p.set('to', elTo.value);
+            }
+            if (F.category !== '전체') p.set('category', F.category);
+            if (elSubCat.value !== '전체') p.set('subcategory', elSubCat.value);
+            if (F.txtype !== '전체') p.set('type', F.txtype);
+            if (F.direction !== '전체') p.set('direction', F.direction);
+            if (elSearch.value.trim()) p.set('q', elSearch.value.trim());
+            if (elAmtMin.value) p.set('amount_min', elAmtMin.value);
+            if (elAmtMax.value) p.set('amount_max', elAmtMax.value);
+            p.set('sort', sortCol); p.set('dir', sortDir);
+
+            fetch('/api/transactions?' + p.toString()).then(r => r.json()).then(data => {
+                catTree = data.categories || {};
+                catColors = data.colors || {};
+                const prevSub = elSubCat.value;
+                updateSubCategoryFilter();
+                if (prevSub !== '전체') {
+                    for (const opt of elSubCat.options) { if (opt.value === prevSub) { elSubCat.value = prevSub; break; } }
+                }
+                let rows = data.rows || [];
+                const tagFilter = elTag.value;
+                if (tagFilter !== '전체') {
+                    rows = rows.filter(r => {
+                        const memo = r.메모 || '';
+                        if (tagFilter === '자동') return memo.includes('[자동]');
+                        if (tagFilter === '메모') return parseMemo(memo).userMemo.length > 0;
+                        if (tagFilter === '태그없음') { const pm = parseMemo(memo); return pm.tags.length === 0 && !pm.userMemo; }
+                        return true;
+                    });
+                }
+                renderTable(rows);
+                $('totalCount').textContent = rows.length.toLocaleString();
+                updateArrows();
+                updateKpi(rows);
+                updateActiveFilters();
+            }).catch(() => { elBody.innerHTML = '<tr><td colspan="8" class="empty">데이터 로드 실패</td></tr>'; });
+        }
+
+        // ===== KPI 업데이트 =====
+        function updateKpi(rows) {
+            const FMT = n => Math.round(n).toLocaleString() + '원';
+            let totalIn = 0, totalOut = 0;
+            rows.forEach(r => { totalIn += (r.입금 || 0); totalOut += (r.출금 || 0); });
+            const net = totalIn - totalOut, count = rows.length;
+            const avg = count > 0 ? (totalIn + totalOut) / count : 0;
+            $('kpiIncome').textContent = FMT(totalIn);
+            $('kpiExpense').textContent = FMT(totalOut);
+            const kpiNetEl = $('kpiNet');
+            kpiNetEl.textContent = (net >= 0 ? '+' : '') + FMT(net);
+            kpiNetEl.style.color = net >= 0 ? 'var(--success)' : 'var(--danger)';
+            $('kpiCount').textContent = count.toLocaleString() + '건';
+            $('kpiAvg').textContent = FMT(avg);
+        }
+
+        // ===== 활성 필터 표시 =====
+        function updateActiveFilters() {
+            const tags = [];
+            const addTag = (label, clearFn) => tags.push({label, clear: clearFn});
+            if (elDateFilter.value) addTag(`날짜: ${elDateFilter.value}`, () => { elDateFilter.value = ''; F.date = ''; fetchData(); });
+            if (F.direction !== '전체') addTag(`${F.direction}만`, () => { syncToggle('direction','전체'); fetchData(); });
+            if (F.category !== '전체') addTag(`대분류: ${F.category}`, () => { syncToggle('category','전체'); updateSubCategoryFilter(); fetchData(); });
+            if (elSubCat.value !== '전체') addTag(`중분류: ${elSubCat.value}`, () => { elSubCat.value = '전체'; fetchData(); });
+            if (F.txtype !== '전체') addTag(`유형: ${F.txtype}`, () => { syncToggle('txtype','전체'); fetchData(); });
+            if (elSearch.value.trim()) addTag(`"${elSearch.value.trim()}"`, () => { elSearch.value = ''; fetchData(); });
+            if (elTag.value !== '전체') addTag(`태그: ${elTag.value}`, () => { elTag.value = '전체'; fetchData(); });
+            if (elAmtMin.value) addTag(`≥${Number(elAmtMin.value).toLocaleString()}원`, () => { elAmtMin.value = ''; fetchData(); });
+            if (elAmtMax.value) addTag(`≤${Number(elAmtMax.value).toLocaleString()}원`, () => { elAmtMax.value = ''; fetchData(); });
+
+            const afEl = $('activeFilters'), afTags = $('afTags');
+            if (!tags.length) { afEl.style.display = 'none'; return; }
+            afEl.style.display = 'flex';
+            afTags.innerHTML = '';
+            tags.forEach(t => {
+                const tag = document.createElement('span');
+                tag.className = 'af-tag';
+                tag.innerHTML = `${t.label} <span class="af-x">&times;</span>`;
+                tag.querySelector('.af-x').addEventListener('click', t.clear);
+                afTags.appendChild(tag);
+            });
+        }
+
+        // ===== Memo parser =====
+        const _TAG_MAP = {
+            '[자동]':   {label:'자동', cls:'auto'},
+            '[자체이체]': {label:'자체이체', cls:'transfer'},
+            '[카드대금]': {label:'카드대금', cls:'card-pay'},
+            '[가수금]':  {label:'가수금', cls:'temp-in'},
+            '[가지급금]': {label:'가지급금', cls:'temp-out'},
+        };
+        function parseMemo(memo) {
+            if (!memo) return {tags:[], userMemo:''};
+            let text = memo;
+            const tags = [];
+            for (const [tag, info] of Object.entries(_TAG_MAP)) {
+                if (text.includes(tag)) {
+                    tags.push({key: tag, html: `<span class="sys-tag ${info.cls}">${info.label}</span>`});
+                    text = text.replace(tag, '');
+                }
+            }
+            return {tags, userMemo: text.trim()};
+        }
+
+        // ===== 프리셋 색상 팔레트 =====
+        const _PALETTE = [
+            {bg:'#f3e8ff', fg:'#7c3aed', name:'보라'},
+            {bg:'#ede9fe', fg:'#5b21b6', name:'진보라'},
+            {bg:'#dbeafe', fg:'#1d4ed8', name:'파랑'},
+            {bg:'#e0f2fe', fg:'#0369a1', name:'하늘'},
+            {bg:'#dcfce7', fg:'#166534', name:'초록'},
+            {bg:'#d1fae5', fg:'#065f46', name:'민트'},
+            {bg:'#ecfdf5', fg:'#047857', name:'연민트'},
+            {bg:'#fef3c7', fg:'#b45309', name:'노랑'},
+            {bg:'#fff7ed', fg:'#9a3412', name:'주황'},
+            {bg:'#fce7f3', fg:'#9d174d', name:'핑크'},
+            {bg:'#fee2e2', fg:'#991b1b', name:'빨강'},
+            {bg:'#fef2f2', fg:'#b91c1c', name:'연빨강'},
+            {bg:'#e0e7ff', fg:'#3730a3', name:'남색'},
+            {bg:'#f1f5f9', fg:'#475569', name:'회색'},
+            {bg:'#f5f5f4', fg:'#57534e', name:'베이지'},
+            {bg:'#fefce8', fg:'#854d0e', name:'올리브'},
+        ];
+
+        function paletteHtml(currentBg, callbackName, callbackArgs) {
+            return '<div class="color-palette">' + _PALETTE.map(p => {
+                const active = p.bg === currentBg ? ' active' : '';
+                const args = callbackArgs ? `,${callbackArgs}` : '';
+                return `<div class="color-swatch${active}" style="background:${p.bg}" title="${p.name}"
+                    onclick="event.stopPropagation(); ${callbackName}('${p.bg}','${p.fg}'${args})"></div>`;
+            }).join('') + '</div>';
+        }
+
+        // ===== Color helpers =====
+        function getColor(major, minor) {
+            if (minor) {
+                const key = major + '_' + minor;
+                if (catColors[key]) return catColors[key];
+            }
+            return catColors[major] || {bg: '#f1f5f9', fg: '#475569'};
+        }
+
+        function badgeHtml(label, major, minor) {
+            const c = getColor(major, minor);
+            return `<span class="badge" style="background:${c.bg};color:${c.fg}">${label}</span>`;
+        }
+
+        // ===== Render =====
+        function renderTable(rows) {
+            if (!rows || !rows.length) {
+                rowDataMap = {};
+                elBody.innerHTML = '<tr><td colspan="8" class="empty">해당 조건의 거래가 없습니다.</td></tr>';
+                return;
+            }
+            rowDataMap = {};
+            rows.forEach(r => { rowDataMap[r.id] = r; });
+            const fmt = n => n ? n.toLocaleString() : '';
+            elBody.innerHTML = rows.map(r => {
+                const mj = r.대분류 || '미분류';
+                const mn = r.중분류 || '';
+                const parsed = parseMemo(r.메모 || '');
+                let indicators = parsed.tags.map(t => t.html).join('');
+                if (parsed.userMemo) {
+                    indicators += `<span class="memo-indicator" onclick="event.stopPropagation()">M<span class="memo-tip">${esc(parsed.userMemo)}</span></span>`;
+                }
+                return `<tr data-txid="${r.id}" onclick="onRowClick(event,'${r.id}')">
+                    <td style="white-space:nowrap">${r.날짜}</td>
+                    <td>${badgeHtml(r.유형, r.유형, '')}</td>
+                    <td>${r.적요} ${indicators}</td>
+                    <td>${r.거래처}</td>
+                    <td class="amount amt-in">${r.입금 > 0 ? fmt(r.입금) : ''}</td>
+                    <td class="amount amt-out">${r.출금 > 0 ? fmt(r.출금) : ''}</td>
+                    <td class="cat-cell" onclick="event.stopPropagation();openModal('${r.id}','major','${esc(mj)}','${esc(mn)}')">
+                        <div class="cat-inner">${badgeHtml(mj, mj, '')}<span class="ico">&#9998;</span></div>
+                    </td>
+                    <td class="cat-cell" onclick="event.stopPropagation();openModal('${r.id}','minor','${esc(mj)}','${esc(mn)}')">
+                        <div class="cat-inner"><span>${mn || '-'}</span><span class="ico">&#9998;</span></div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+        function esc(s) { return (s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+
+        // ===== Sort =====
+        function toggleSort(col) {
+            if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+            else { sortCol = col; sortDir = 'desc'; }
+            fetchData();
+        }
+        function updateArrows() {
+            document.querySelectorAll('.arr').forEach(el => el.textContent = '');
+            const a = $('arr-' + sortCol);
+            if (a) a.textContent = sortDir === 'asc' ? '▲' : '▼';
+        }
+
+        // ===== 중분류 필터 동적 업데이트 =====
+        function updateSubCategoryFilter() {
+            const major = F.category;
+            elSubCat.innerHTML = '<option value="전체">중분류: 전체</option>';
+            if (major !== '전체' && catTree[major]) {
+                // 특정 대분류 선택 시 해당 중분류만 표시
+                catTree[major].forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m; opt.textContent = m;
+                    elSubCat.appendChild(opt);
+                });
+            } else if (major === '전체') {
+                // 대분류 전체일 때 모든 중분류를 그룹별로 표시
+                for (const [maj, minors] of Object.entries(catTree)) {
+                    if (!minors || minors.length === 0) continue;
+                    const grp = document.createElement('optgroup');
+                    grp.label = maj;
+                    minors.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m; opt.textContent = m;
+                        grp.appendChild(opt);
+                    });
+                    elSubCat.appendChild(grp);
+                }
+            }
+            elSubCat.value = '전체';
+        }
+
+        // ===== Filters reset =====
+        function resetFilters() {
+            // 기간 → 전체
+            elFrom.value = _txMonths[0];
+            elTo.value = _txMonths[_txMonths.length - 1];
+            elDateFilter.value = ''; F.date = '';
+            // 토글 → 전체
+            syncToggle('direction', '전체');
+            syncToggle('category', '전체');
+            syncToggle('txtype', '전체');
+            // 셀렉트
+            elSubCat.innerHTML = '<option value="전체">중분류: 전체</option>';
+            elTag.value = '전체';
+            // 입력
+            elSearch.value = ''; elAmtMin.value = ''; elAmtMax.value = '';
+            sortCol = '거래일자'; sortDir = 'desc';
+            // 프리셋
+            $('presetGroup').querySelectorAll('.tx-preset').forEach(b => b.classList.toggle('active', b.dataset.n === '0'));
+            fetchData();
+        }
+
+        // ===== Modal =====
+        function openModal(txId, mode, major, minor) {
+            editTxId = txId; editCurrentMajor = major; editCurrentMinor = minor;
+            const modal = $('catModal');
+            const body = $('modalBody');
+
+            // 같은 적요 건수 조회
+            $('applyAllCheck').checked = _applyAllDefault;
+            $('applyAllBar').style.display = 'none';
+            fetch('/api/transaction/same_desc?id=' + encodeURIComponent(txId))
+                .then(r => r.json())
+                .then(d => {
+                    if (d.count > 1) {
+                        $('applyAllDesc').textContent = `"${d.desc}"`;
+                        $('applyAllCount').textContent = d.count;
+                        $('applyAllBar').style.display = 'block';
+                    }
+                }).catch(() => {});
+
+            if (mode === 'major') {
+                $('modalTitle').textContent = '대분류 선택';
+                body.innerHTML = renderMajorPicker();
+            } else {
+                $('modalTitle').textContent = '중분류 선택';
+                body.innerHTML = renderMinorPicker(major);
+            }
+            modal.classList.add('show');
+        }
+
+        function closeModal() {
+            $('catModal').classList.remove('show');
+            $('applyAllBar').style.display = 'none';
+            $('applyAllCheck').checked = _applyAllDefault;
+        }
+
+        // ----- 대분류 선택 -----
+        function renderMajorPicker() {
+            const majors = [
+                {name:'고정비', desc:'매월 고정 지출'},
+                {name:'변동비', desc:'변동 지출'},
+                {name:'수입', desc:'입금/매출'},
+                {name:'자체이체', desc:'계좌 간 이체'},
+                {name:'카드대금', desc:'카드 결제 대금'},
+                {name:'가수금', desc:'임시 입금'},
+                {name:'가지급금', desc:'임시 지출'},
+                {name:'미분류', desc:'분류 없음'}
+            ];
+            return '<div class="major-grid">' + majors.map(m => {
+                const c = getColor(m.name, '');
+                const sel = m.name === editCurrentMajor ? ' selected' : '';
+                return `<div class="major-card${sel}" style="background:${c.bg};color:${c.fg}"
+                    onclick="saveMajor('${m.name}')">
+                    <div>${m.name}</div>
+                    <div style="font-size:0.75rem;font-weight:400;margin-top:4px;opacity:0.7">${m.desc}</div>
+                </div>`;
+            }).join('') + '</div>' +
+            '<div style="margin-top:1rem">' +
+                '<div class="cat-section-title">대분류 색상 변경 <span style="font-weight:400;font-size:0.72rem">(클릭하여 변경)</span></div>' +
+                '<div style="display:flex;flex-wrap:wrap;gap:6px;padding:0.3rem 0">' +
+                majors.filter(m=>m.name!=='미분류').map(m => {
+                    const c = getColor(m.name, '');
+                    return `<div style="display:inline-flex;align-items:center;gap:4px;padding:0.3rem 0.6rem;border-radius:8px;background:${c.bg};cursor:pointer"
+                        onclick="event.stopPropagation(); toggleMajorPalette('${m.name}', this)">
+                        <span class="color-dot" style="width:12px;height:12px;border-radius:50%;display:inline-block;border:2px solid rgba(0,0,0,0.15);background:${c.bg}"></span>
+                        <span style="font-size:0.8rem;font-weight:600;color:${c.fg}">${m.name}</span>
+                    </div>`;
+                }).join('') +
+            '</div></div>';
+        }
+
+        function saveMajor(major) {
+            const applyAll = $('applyAllCheck').checked;
+            closeModal();
+            saveClassify(editTxId, major, editCurrentMinor, applyAll);
+        }
+
+        function toggleMajorPalette(major, el) {
+            const c = getColor(major, '');
+            showPaletteAt(el,
+                '<div style="font-size:0.78rem;font-weight:600;margin-bottom:6px;color:var(--text-light)">' + major + ' 색상</div>' +
+                paletteHtml(c.bg, 'applyMajorColor', "'" + major + "'")
+            );
+        }
+
+        function applyMajorColor(bg, fg, major) {
+            // 팔레트 닫기
+            document.querySelectorAll('.color-picker-dropdown').forEach(el => el.remove());
+            fetch('/api/categories/color', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({key: major, bg, fg})
+            }).then(r => r.json()).then(d => {
+                if (d.ok && d.data) { catColors = d.data.colors || {}; }
+                // 모달 내 대분류 피커 갱신
+                $('modalBody').innerHTML = renderMajorPicker();
+                fetchData();
+                showToast('색상이 변경되었습니다');
+            });
+        }
+
+        // ----- 중분류 선택 + 관리 -----
+        function renderMinorPicker(activeMajor) {
+            let html = '';
+
+            // 탭: 대분류별
+            const majors = ['고정비','변동비','수입'];
+            html += '<div class="tab-bar">';
+            majors.forEach(m => {
+                const cls = m === activeMajor ? ' active' : '';
+                html += `<button class="tab-btn${cls}" onclick="switchMinorTab('${m}')">${m}</button>`;
+            });
+            html += '</div>';
+
+            html += `<div id="minorContent">${renderMinorSection(activeMajor)}</div>`;
+            return html;
+        }
+
+        function renderMinorSection(major) {
+            const minors = catTree[major] || [];
+            let html = '<div class="cat-list">';
+
+            minors.forEach(m => {
+                const c = getColor(major, m);
+                const sel = (major === editCurrentMajor && m === editCurrentMinor) ? ' selected' : '';
+                html += `<div class="cat-chip${sel}" style="background:${c.bg};color:${c.fg}"
+                    onclick="saveMinor('${esc(major)}','${esc(m)}')">
+                    <span class="color-dot" style="width:12px;height:12px;border-radius:50%;display:inline-block;border:1px solid rgba(0,0,0,0.15);background:${c.bg};cursor:pointer"
+                        onclick="event.stopPropagation(); toggleMinorPalette('${esc(major)}','${esc(m)}',this)"></span>
+                    ${m}
+                    <span class="del-x" onclick="event.stopPropagation();deleteMinor('${esc(major)}','${esc(m)}')" title="삭제">&times;</span>
+                </div>`;
+            });
+
+            if (minors.length === 0) {
+                html += '<div style="color:var(--text-light);font-size:0.85rem;padding:0.5rem">등록된 중분류가 없습니다</div>';
+            }
+            html += '</div>';
+
+            // 추가 폼 (대분류 색상 자동 상속)
+            const majorC = getColor(major, '');
+            html += `<div class="add-row">
+                <input type="text" id="newMinorName" placeholder="새 중분류명 입력" onkeydown="if(event.key==='Enter')addMinor('${esc(major)}')">
+                <input type="hidden" id="newMinorBg" value="${majorC.bg}">
+                <input type="hidden" id="newMinorFg" value="${majorC.fg}">
+                <button class="btn-add" onclick="addMinor('${esc(major)}')">추가</button>
+            </div>`;
+
+            return html;
+        }
+
+        function switchMinorTab(major) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            $('minorContent').innerHTML = renderMinorSection(major);
+        }
+
+        function saveMinor(major, minor) {
+            const applyAll = $('applyAllCheck').checked;
+            closeModal();
+            saveClassify(editTxId, major, minor, applyAll);
+        }
+
+        function addMinor(major) {
+            const name = $('newMinorName').value.trim();
+            if (!name) { showToast('중분류명을 입력해주세요', true); return; }
+            const bg = $('newMinorBg').value;
+            const fg = $('newMinorFg').value;
+            fetch('/api/categories/add', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({major, minor: name, bg, fg})
+            }).then(r=>r.json()).then(d => {
+                if (d.ok && d.data) {
+                    catTree = d.data.tree || {};
+                    catColors = d.data.colors || {};
+                    $('minorContent').innerHTML = renderMinorSection(major);
+                    showToast(`"${name}" 추가 완료`);
+                } else {
+                    showToast(d.error || '추가 실패', true);
+                }
+            });
+        }
+
+        function deleteMinor(major, minor) {
+            if (!confirm(`"${minor}" 중분류를 삭제하시겠습니까?`)) return;
+            fetch('/api/categories/delete', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({major, minor})
+            }).then(r=>r.json()).then(d => {
+                if (d.ok && d.data) {
+                    catTree = d.data.tree || {};
+                    catColors = d.data.colors || {};
+                    $('minorContent').innerHTML = renderMinorSection(major);
+                    showToast(`"${minor}" 삭제 완료`);
+                    fetchData();
+                } else {
+                    showToast(d.error || '삭제 실패', true);
+                }
+            });
+        }
+
+        // 색상 팔레트 토글 (fixed 위치)
+        function showPaletteAt(dotEl, innerHtml) {
+            // 기존 팔레트 닫기
+            document.querySelectorAll('.color-picker-dropdown').forEach(el => el.remove());
+
+            const rect = dotEl.getBoundingClientRect();
+            const dropdown = document.createElement('div');
+            dropdown.className = 'color-picker-dropdown show';
+            dropdown.innerHTML = innerHtml;
+            document.body.appendChild(dropdown);
+
+            // 위치: 클릭한 요소 아래에 표시, 화면 밖이면 조정
+            let top = rect.bottom + 6;
+            let left = rect.left;
+            if (top + 220 > window.innerHeight) top = rect.top - 220;
+            if (left + 200 > window.innerWidth) left = window.innerWidth - 210;
+            dropdown.style.top = top + 'px';
+            dropdown.style.left = left + 'px';
+
+            // 외부 클릭 시 닫기
+            setTimeout(() => {
+                const handler = (e) => {
+                    if (!dropdown.contains(e.target)) {
+                        dropdown.remove();
+                        document.removeEventListener('click', handler);
+                    }
+                };
+                document.addEventListener('click', handler);
+            }, 10);
+        }
+
+        function toggleMinorPalette(major, minor, dotEl) {
+            const c = getColor(major, minor);
+            showPaletteAt(dotEl,
+                '<div style="font-size:0.78rem;font-weight:600;margin-bottom:6px;color:var(--text-light)">색상 선택</div>' +
+                paletteHtml(c.bg, 'applyMinorColor', "'" + esc(major) + "','" + esc(minor) + "'")
+            );
+        }
+
+        function applyMinorColor(bg, fg, major, minor) {
+            const key = major + '_' + minor;
+            fetch('/api/categories/color', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({key, bg, fg})
+            }).then(r=>r.json()).then(d => {
+                if (d.ok && d.data) {
+                    catColors = d.data.colors || {};
+                    // 팔레트 닫기 & 모달 갱신
+                    document.querySelectorAll('.color-picker-dropdown').forEach(el => el.remove());
+                    $('minorContent').innerHTML = renderMinorSection(major);
+                    fetchData();
+                }
+            });
+        }
+
+        // ===== 거래 분류 저장 =====
+        function saveClassify(txId, major, minor, applyAll) {
+            applyAll = applyAll || false;
+            fetch('/api/transaction/classify', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({id: txId, '대분류': major, '중분류': minor, apply_all: applyAll})
+            }).then(r=>r.json()).then(d => {
+                if (d.ok) {
+                    const cnt = d.changed || 1;
+                    const msg = applyAll && cnt > 1
+                        ? `같은 적요 ${cnt}건 일괄 변경 완료`
+                        : '분류가 변경되었습니다';
+                    showToast(msg, false, d.log_id);
+                    fetchData();
+                } else showToast(d.error || '오류', true);
+            }).catch(() => showToast('저장 실패', true));
+        }
+
+        // ===== Utils =====
+        function autoTextColor(hex) {
+            // 밝기 계산하여 어두운/밝은 텍스트 색상 자동 선택
+            const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+            const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+            return lum > 0.6 ? '#1e293b' : '#ffffff';
+        }
+
+        let _toastTimer = null;
+        function showToast(msg, isErr, logId) {
+            const t = $('toast');
+            if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+            t.style.background = isErr ? '#991b1b' : '#065f46';
+
+            if (logId && !isErr) {
+                const dur = 10;
+                t.innerHTML = `<span class="toast-msg">${msg}</span>`
+                    + `<button class="undo-btn" onclick="undoFromToast('${logId}')">↩️ 되돌리기</button>`
+                    + `<span class="toast-timer" style="animation-duration:${dur}s"></span>`;
+                t.classList.add('show');
+                _toastTimer = setTimeout(() => { t.classList.remove('show'); _toastTimer = null; }, dur * 1000);
+            } else {
+                t.innerHTML = `<span class="toast-msg">${msg}</span>`;
+                t.classList.add('show');
+                _toastTimer = setTimeout(() => { t.classList.remove('show'); _toastTimer = null; }, 2500);
+            }
+        }
+
+        async function undoFromToast(logId) {
+            const t = $('toast');
+            t.classList.remove('show');
+            if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+            try {
+                const res = await fetch('/api/log/undo', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({id: logId})
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    showToast(`${data.restored}건이 되돌려졌습니다`);
+                    fetchData();
+                } else {
+                    showToast(data.error || '되돌리기 실패', true);
+                }
+            } catch(e) { showToast('되돌리기 실패', true); }
+        }
+
+        // ===== 거래 상세 모달 =====
+        function onRowClick(event, txId) {
+            const r = rowDataMap[txId];
+            if (!r) return;
+            const fmt = n => n ? Number(n).toLocaleString() + '원' : '-';
+            const mj = r.대분류 || '미분류';
+            const mn = r.중분류 || '-';
+            const cMj = getColor(mj, '');
+            const datetime = r.시간 ? `${r.날짜} ${r.시간}` : r.날짜;
+
+            const fields = [
+                ['거래일시', datetime],
+                ['거래유형', r.유형 || '-'],
+                ['적요', r.적요 || '-'],
+                ['거래처', r.거래처 || '-'],
+                ['입금액', r.입금 > 0 ? fmt(r.입금) : '-', r.입금 > 0 ? 'amt-in' : ''],
+                ['출금액', r.출금 > 0 ? fmt(r.출금) : '-', r.출금 > 0 ? 'amt-out' : ''],
+                ['잔액', r.잔액 != null ? fmt(r.잔액) : '-'],
+                ['대분류', `<span class="badge" style="background:${cMj.bg};color:${cMj.fg}">${mj}</span>`],
+                ['중분류', mn],
+                ['메모', r.메모 || '-'],
+                ['원본파일', r.원본파일 || '-'],
+            ];
+            // 카드 거래일 경우 카드번호 표시
+            if (r.카드번호) {
+                fields.splice(2, 0, ['카드번호', r.카드번호]);
+            }
+            // 자체이체 항목: 이체 흐름 표시
+            if (mj === '자체이체' && r.이체) {
+                const t = r.이체;
+                let flowHtml = '';
+                const acctBadge = (a, cls) =>
+                    `<span class="match-account ${cls||''}">${esc(a.name)}<span class="match-account-num">${esc(a.number)}</span></span>`;
+                const arrow = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px;margin:0 6px;flex-shrink:0"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>`;
+
+                const unknown = `<span class="match-account unknown">?</span>`;
+                if (t.from && t.to) {
+                    // 양쪽 매칭 성공
+                    flowHtml = `<div class="transfer-flow">${acctBadge(t.from, 'from')}${arrow}${acctBadge(t.to, 'to')}</div>`;
+                } else if (t.account) {
+                    // 한쪽 기록만 있음 — 방향 표시
+                    if (r.입금 > 0) {
+                        // 이 계좌에 입금됨 → ? → 이 계좌
+                        flowHtml = `<div class="transfer-flow">${unknown}${arrow}${acctBadge(t.account, 'to')}</div>`;
+                    } else {
+                        // 이 계좌에서 출금됨 → 이 계좌 → ?
+                        flowHtml = `<div class="transfer-flow">${acctBadge(t.account, 'from')}${arrow}${unknown}</div>`;
+                    }
+                }
+
+                const catIdx = fields.findIndex(f => f[0] === '대분류');
+                if (catIdx >= 0) {
+                    fields.splice(catIdx + 1, 0, ['이체 경로', flowHtml]);
+                }
+            }
+
+            const currentMemo = r.메모 || '';
+            $('detailBody').innerHTML = fields.map(f => {
+                if (f[0] === '메모') {
+                    return `<div class="detail-row" style="flex-direction:column;gap:0.3rem">
+                        <div class="detail-label">메모</div>
+                        <div class="memo-edit-row">
+                            <textarea id="detailMemoInput" placeholder="메모를 입력하세요...">${esc(currentMemo)}</textarea>
+                            <button class="memo-save-btn" onclick="saveMemo('${r.id}')">저장</button>
+                        </div>
+                    </div>`;
+                }
+                return `<div class="detail-row">
+                    <div class="detail-label">${f[0]}</div>
+                    <div class="detail-value${f[2] ? ' '+f[2] : ''}">${f[1]}</div>
+                </div>`;
+            }).join('');
+
+            $('detailModal').classList.add('show');
+        }
+
+        function saveMemo(txId) {
+            const memo = $('detailMemoInput').value.trim();
+            fetch('/api/transaction/memo', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({id: txId, '메모': memo})
+            }).then(r=>r.json()).then(d => {
+                if (d.ok) {
+                    // rowDataMap 업데이트
+                    if (rowDataMap[txId]) rowDataMap[txId].메모 = memo;
+                    showToast('메모가 저장되었습니다', false, d.log_id);
+                    fetchData();
+                } else showToast(d.error || '저장 실패', true);
+            }).catch(() => showToast('메모 저장 실패', true));
+        }
+
+        function closeDetail() {
+            $('detailModal').classList.remove('show');
+        }
+        $('detailModal').addEventListener('click', e => { if (e.target === $('detailModal')) closeDetail(); });
+
+        // ===== Init =====
+        fetchData();
+        // subcategory는 catTree 로드 후 적용
+        if (_pendingSubCat) {
+            setTimeout(() => {
+                updateSubCategoryFilter();
+                for (const opt of elSubCat.options) {
+                    if (opt.value === _pendingSubCat) { elSubCat.value = _pendingSubCat; break; }
+                }
+                _pendingSubCat = '';
+                fetchData();
+            }, 500);
+        }
+        </script>
+        {% endif %}
+    </div>
+</body>
+</html>

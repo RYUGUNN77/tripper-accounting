@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>설정 — 회계 자금 흐름 분석</title>
+    <style>
+        :root {
+            --primary: #2563eb; --primary-dark: #1e40af;
+            --success: #16a34a; --danger: #dc2626;
+            --bg: #f8fafc; --card: #fff;
+            --text: #1e293b; --text-light: #64748b;
+            --border: #e2e8f0; --radius: 12px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg); color: var(--text); min-height: 100vh; }
+
+        .container { max-width: 800px; margin: 0 auto; padding: 2rem 1.5rem; }
+        h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: .5rem; }
+        .subtitle { color: var(--text-light); font-size: .88rem; margin-bottom: 2rem; }
+
+        .settings-section {
+            background: var(--card); border-radius: var(--radius);
+            border: 1px solid var(--border); margin-bottom: 1.2rem;
+            overflow: hidden;
+        }
+        .section-header {
+            display: flex; align-items: center; gap: 10px;
+            padding: 1rem 1.2rem; background: #f8fafc;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600; font-size: .92rem;
+        }
+        .section-header svg { width: 20px; height: 20px; color: var(--primary); }
+
+        .setting-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: .9rem 1.2rem; border-bottom: 1px solid #f1f5f9;
+            gap: 1rem;
+        }
+        .setting-row:last-child { border-bottom: none; }
+        .setting-info { flex: 1; }
+        .setting-label { font-size: .88rem; font-weight: 500; }
+        .setting-desc { font-size: .76rem; color: var(--text-light); margin-top: 2px; }
+
+        /* 토글 스위치 */
+        .toggle-switch {
+            position: relative; width: 44px; height: 24px; flex-shrink: 0;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-switch .slider {
+            position: absolute; inset: 0; border-radius: 12px;
+            background: #cbd5e1; cursor: pointer; transition: .2s;
+        }
+        .toggle-switch .slider::before {
+            content: ''; position: absolute; width: 18px; height: 18px;
+            left: 3px; top: 3px; border-radius: 50%;
+            background: #fff; transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.15);
+        }
+        .toggle-switch input:checked + .slider { background: var(--primary); }
+        .toggle-switch input:checked + .slider::before { transform: translateX(20px); }
+
+        /* 숫자 입력 */
+        .setting-input {
+            width: 80px; padding: 6px 10px; border: 1px solid var(--border);
+            border-radius: 8px; font-size: .85rem; text-align: center;
+        }
+        .setting-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+
+        /* 셀렉트 */
+        .setting-select {
+            padding: 6px 10px; border: 1px solid var(--border);
+            border-radius: 8px; font-size: .85rem; background: #fff;
+        }
+
+        /* 저장 버튼 */
+        .save-bar {
+            position: sticky; bottom: 0; background: var(--card);
+            border-top: 1px solid var(--border); padding: 1rem 0;
+            display: flex; justify-content: flex-end; gap: 10px;
+            margin-top: 1rem;
+        }
+        .btn { padding: 8px 20px; border: none; border-radius: 8px; font-size: .85rem;
+            font-weight: 600; cursor: pointer; transition: all .15s; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-secondary { background: #f1f5f9; color: var(--text); }
+        .btn-secondary:hover { background: #e2e8f0; }
+
+        /* 토스트 */
+        .toast {
+            position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+            padding: .6rem 1.2rem; border-radius: 8px;
+            background: #1e293b; color: #fff; font-size: .82rem;
+            opacity: 0; transition: opacity .3s; z-index: 999; pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+{% include '_sidebar.html' %}
+
+<div class="container">
+    <h1>설정</h1>
+    <p class="subtitle">앱 동작 방식을 세부적으로 설정합니다.</p>
+
+    <!-- 거래내역 -->
+    <div class="settings-section">
+        <div class="section-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            거래내역
+        </div>
+        <div class="setting-row">
+            <div class="setting-info">
+                <div class="setting-label">같은 적요 모두 적용 기본 체크</div>
+                <div class="setting-desc">분류 변경 시 같은 적요의 모든 거래에 자동 적용하는 체크박스의 기본값</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" data-section="transactions" data-key="apply_same_desc_checked"
+                    {% if settings.transactions.apply_same_desc_checked %}checked{% endif %}>
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="setting-row">
+            <div class="setting-info">
+                <div class="setting-label">페이지당 표시 행 수</div>
+                <div class="setting-desc">0 = 전체 표시 (데이터가 많으면 느려질 수 있음)</div>
+            </div>
+            <input type="number" class="setting-input" min="0" step="50"
+                data-section="transactions" data-key="rows_per_page"
+                value="{{ settings.transactions.rows_per_page }}">
+        </div>
+    </div>
+
+    <!-- 일괄분류 -->
+    <div class="settings-section">
+        <div class="section-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            일괄분류
+        </div>
+        <div class="setting-row">
+            <div class="setting-info">
+                <div class="setting-label">입금/출금 동시 적용</div>
+                <div class="setting-desc">일괄분류 시 입금과 출금에 동시에 적용하는 옵션의 기본값</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" data-section="classification" data-key="apply_both_directions"
+                    {% if settings.classification.apply_both_directions %}checked{% endif %}>
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="setting-row">
+            <div class="setting-info">
+                <div class="setting-label">분류 규칙(키워드) 자동 등록</div>
+                <div class="setting-desc">일괄분류 시 같은 적요를 다음 업로드부터 자동 분류하도록 키워드에 등록하는 체크박스의 기본값</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" data-section="classification" data-key="auto_register_keyword"
+                    {% if settings.classification.auto_register_keyword %}checked{% endif %}>
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="setting-row">
+            <div class="setting-info">
+                <div class="setting-label">업로드 시 자동 분류</div>
+                <div class="setting-desc">파일 업로드 후 키워드 기반 자동 분류 실행</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" data-section="classification" data-key="auto_classify_on_import"
+                    {% if settings.classification.auto_classify_on_import %}checked{% endif %}>
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- 백업 -->
+    <div class="settings-section">
+        <div class="section-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            백업
+        </div>
+        <div class="setting-row">
+            <div class="setting-info">
+                <div class="setting-label">서버 시작 시 자동 백업</div>
+                <div class="setting-desc">앱 시작할 때 마스터 데이터를 자동으로 백업</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" data-section="backup" data-key="auto_backup_on_start"
+                    {% if settings.backup.auto_backup_on_start %}checked{% endif %}>
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="setting-row">
+            <div class="setting-info">
+                <div class="setting-label">최대 백업 수</div>
+                <div class="setting-desc">이 수를 초과하면 오래된 백업부터 자동 삭제</div>
+            </div>
+            <input type="number" class="setting-input" min="1" max="100"
+                data-section="backup" data-key="max_backups"
+                value="{{ settings.backup.max_backups }}">
+        </div>
+    </div>
+
+    <!-- 표시 -->
+    <div class="settings-section">
+        <div class="section-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            표시
+        </div>
+        <div class="setting-row">
+            <div class="setting-info">
+                <div class="setting-label">날짜 표시 형식</div>
+                <div class="setting-desc">거래 내역 등에서 날짜가 표시되는 형식</div>
+            </div>
+            <select class="setting-select" data-section="display" data-key="date_format">
+                <option value="YYYY-MM-DD" {% if settings.display.date_format == "YYYY-MM-DD" %}selected{% endif %}>2026-04-03</option>
+                <option value="YYYY.MM.DD" {% if settings.display.date_format == "YYYY.MM.DD" %}selected{% endif %}>2026.04.03</option>
+                <option value="MM/DD/YYYY" {% if settings.display.date_format == "MM/DD/YYYY" %}selected{% endif %}>04/03/2026</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="save-bar">
+        <button class="btn btn-secondary" onclick="resetSettings()">초기화</button>
+        <button class="btn btn-primary" onclick="saveSettings()">저장</button>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function collectSettings() {
+    const data = {};
+    document.querySelectorAll('[data-section]').forEach(el => {
+        const sec = el.dataset.section;
+        const key = el.dataset.key;
+        if (!data[sec]) data[sec] = {};
+        if (el.type === 'checkbox') {
+            data[sec][key] = el.checked;
+        } else if (el.type === 'number') {
+            data[sec][key] = parseInt(el.value) || 0;
+        } else {
+            data[sec][key] = el.value;
+        }
+    });
+    return data;
+}
+
+async function saveSettings() {
+    const data = collectSettings();
+    try {
+        const res = await fetch('/api/settings/update', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        const r = await res.json();
+        if (r.ok) showToast('설정이 저장되었습니다');
+        else showToast('저장 실패: ' + (r.error || ''));
+    } catch(e) {
+        showToast('저장 중 오류가 발생했습니다');
+    }
+}
+
+async function resetSettings() {
+    if (!confirm('모든 설정을 기본값으로 초기화하시겠습니까?')) return;
+    try {
+        const res = await fetch('/api/settings');
+        // Reset to defaults by reloading
+        location.reload();
+    } catch(e) {
+        showToast('초기화 실패');
+    }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+transactions:
+  apply_same_desc_checked: false
+  rows_per_page: 0
+classification:
+  apply_both_directions: true
+  auto_register_keyword: true
+  auto_classify_on_import: true
+backup:
+  auto_backup_on_start: true
+  max_backups: 20
+display:
+  date_format: YYYY-MM-DD
+  sidebar_collapsed: false

@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회계 자금 흐름 분석</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb; --primary-dark: #1d4ed8; --success: #16a34a;
+            --danger: #dc2626; --warning: #d97706; --bg: #f1f5f9; --card: #fff;
+            --text: #1e293b; --text-light: #64748b; --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08); --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+
+        /* nav CSS removed — using sidebar */
+
+        .container { max-width:1400px; margin:0 auto; padding:1.5rem; }
+
+        /* 필터 바 */
+        .filter-bar {
+            background:var(--card); border-radius:12px; padding:1rem 1.5rem; box-shadow:var(--shadow);
+            display:flex; align-items:center; gap:.8rem; margin-bottom:1.5rem; flex-wrap:wrap;
+        }
+        .filter-bar label { font-weight:600; color:var(--text-light); font-size:.85rem; white-space:nowrap; }
+        .filter-bar select, .filter-bar input[type="month"] {
+            padding:.4rem .7rem; border:2px solid var(--border); border-radius:8px;
+            font-size:.9rem; background:#fff; cursor:pointer;
+        }
+        .filter-bar select:focus, .filter-bar input:focus { border-color:var(--primary); outline:none; }
+        .filter-sep { width:1px; height:28px; background:var(--border); margin:0 .3rem; }
+        .sort-btn {
+            padding:.4rem .7rem; border:2px solid var(--border); border-radius:8px; background:#fff;
+            cursor:pointer; font-size:.85rem; font-weight:600; transition:all .2s; display:flex; align-items:center; gap:.3rem;
+        }
+        .sort-btn:hover { border-color:var(--primary); }
+        .sort-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+        /* 프리셋 버튼 */
+        .preset-group { display:flex; gap:.3rem; }
+        .preset-btn {
+            padding:.35rem .7rem; border:2px solid var(--border); border-radius:8px; background:#fff;
+            cursor:pointer; font-size:.8rem; font-weight:600; color:var(--text-light); transition:all .15s;
+            white-space:nowrap;
+        }
+        .preset-btn:hover { border-color:var(--primary); color:var(--primary); }
+        .preset-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+        /* 연도/월 그리드 선택기 */
+        .period-picker {
+            display:flex; align-items:center; gap:.5rem;
+        }
+        .year-select {
+            padding:.35rem .5rem; border:2px solid var(--border); border-radius:8px;
+            font-size:.85rem; font-weight:600; background:#fff; cursor:pointer; min-width:80px;
+        }
+        .year-select:focus { border-color:var(--primary); outline:none; }
+        .month-grid {
+            display:grid; grid-template-columns:repeat(12, 1fr); gap:2px;
+        }
+        .month-cell {
+            padding:.3rem .15rem; text-align:center; font-size:.72rem; font-weight:600;
+            border-radius:6px; cursor:pointer; transition:all .1s; color:var(--text-light);
+            user-select:none; min-width:28px;
+        }
+        .month-cell:hover { background:#dbeafe; color:var(--primary); }
+        .month-cell.in-range { background:#eff6ff; color:var(--primary); }
+        .month-cell.start, .month-cell.end { background:var(--primary); color:#fff; font-weight:700; }
+        .month-cell.start.end { background:var(--primary); color:#fff; }
+        .month-cell.disabled { opacity:.25; pointer-events:none; }
+        .range-label {
+            font-size:.78rem; color:var(--text); font-weight:600; padding:.2rem .5rem;
+            background:#eff6ff; border-radius:6px; white-space:nowrap;
+        }
+
+        /* 시리즈 토글 */
+        .series-toggles { display:flex; gap:.4rem; flex-wrap:wrap; }
+        .series-chip {
+            padding:.3rem .7rem; border-radius:6px; font-size:.78rem; font-weight:600;
+            cursor:pointer; border:2px solid transparent; transition:all .2s; user-select:none;
+        }
+        .series-chip.active { opacity:1; }
+        .series-chip:not(.active) { opacity:.35; }
+
+        .period-badge {
+            margin-left:auto; background:#eff6ff; color:var(--primary); padding:.35rem .8rem;
+            border-radius:6px; font-weight:600; font-size:.85rem; white-space:nowrap;
+        }
+        .btn-dl {
+            background:var(--primary); color:#fff; border:none; padding:.45rem 1.2rem;
+            border-radius:8px; font-size:.85rem; font-weight:600; cursor:pointer; text-decoration:none;
+        }
+        .btn-dl:hover { background:var(--primary-dark); }
+
+        /* KPI */
+        .kpi-grid { display:grid; grid-template-columns:repeat(7, 1fr); gap:.8rem; margin-bottom:1.5rem; }
+        .kpi-card { background:var(--card); border-radius:10px; padding:.8rem 1rem; box-shadow:var(--shadow); border-left:4px solid var(--primary); min-width:0; cursor:pointer; transition:transform .1s,box-shadow .1s; }
+        .kpi-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-lg); }
+        .kpi-card.income { border-left-color:var(--success); }
+        .kpi-card.expense { border-left-color:var(--danger); }
+        .kpi-card.net { border-left-color:var(--warning); }
+        .kpi-card.fixed { border-left-color:#7c3aed; }
+        .kpi-card.variable { border-left-color:#f59e0b; }
+        .kpi-label { font-size:.72rem; color:var(--text-light); font-weight:500; white-space:nowrap; }
+        .kpi-value { font-size:1.15rem; font-weight:700; margin-top:.15rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .kpi-sub { font-size:.68rem; color:var(--text-light); margin-top:.1rem; white-space:nowrap; }
+        .positive { color:var(--success); } .negative { color:var(--danger); }
+
+        /* 차트 */
+        .chart-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem; }
+        .chart-card { background:var(--card); border-radius:12px; padding:1.5rem; box-shadow:var(--shadow); }
+        .chart-card .chart-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+        .chart-card .chart-header h3 { font-size:1rem; font-weight:600; margin:0; }
+        .chart-card h3 { font-size:1rem; font-weight:600; margin-bottom:1rem; }
+        .chart-card.full { grid-column:1/-1; }
+
+        /* 차트 타입 선택기 */
+        .chart-type-group { display:flex; gap:2px; background:var(--border); border-radius:8px; padding:2px; }
+        .chart-type-btn {
+            padding:.3rem .55rem; border:none; border-radius:6px; background:transparent;
+            cursor:pointer; font-size:.72rem; font-weight:600; color:var(--text-light);
+            transition:all .12s; display:flex; align-items:center; gap:3px; white-space:nowrap;
+        }
+        .chart-type-btn:hover { color:var(--primary); }
+        .chart-type-btn.active { background:#fff; color:var(--primary); box-shadow:0 1px 3px rgba(0,0,0,.1); }
+        .chart-type-btn svg { width:14px; height:14px; }
+
+        /* 하단 */
+        .bottom-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem; }
+        .info-card { background:var(--card); border-radius:12px; padding:1.5rem; box-shadow:var(--shadow); }
+        .info-card h3 { font-size:1rem; font-weight:600; margin-bottom:1rem; padding-bottom:.5rem; border-bottom:2px solid var(--border); }
+        table { width:100%; border-collapse:collapse; }
+        th { text-align:left; font-size:.78rem; color:var(--text-light); padding:.5rem .8rem; font-weight:600; }
+        td { padding:.6rem .8rem; font-size:.88rem; border-top:1px solid var(--border); }
+        tr:hover td { background:#f8fafc; }
+        .amount { text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
+
+        .forecast-item { display:flex; justify-content:space-between; padding:.45rem 0; border-bottom:1px solid var(--border); font-size:.9rem; }
+        .forecast-item:last-child { border-bottom:none; }
+        .forecast-label { color:var(--text-light); }
+        .forecast-value { font-weight:600; }
+
+        .advice-item { padding:.7rem 1rem; margin-bottom:.4rem; border-radius:8px; font-size:.88rem; line-height:1.5; background:#fefce8; border-left:3px solid var(--warning); }
+        .advice-item.alert { background:#fef2f2; border-left-color:var(--danger); }
+        .advice-item.ok { background:#f0fdf4; border-left-color:var(--success); }
+        .anomaly-badge { display:inline-block; background:var(--danger); color:#fff; padding:.1rem .45rem; border-radius:4px; font-size:.73rem; font-weight:600; }
+
+        .empty-state { text-align:center; padding:4rem 2rem; }
+        .empty-state .icon { font-size:4rem; margin-bottom:1rem; }
+        .empty-state h2 { font-size:1.5rem; margin-bottom:.5rem; }
+        .empty-state p { color:var(--text-light); margin-bottom:1.5rem; }
+        .empty-state a { display:inline-block; background:var(--primary); color:#fff; padding:.8rem 2rem; border-radius:10px; text-decoration:none; font-weight:600; }
+
+        .flash-messages { margin-bottom:1rem; }
+        .flash { padding:.8rem 1.2rem; border-radius:8px; margin-bottom:.5rem; font-size:.9rem; }
+        .flash.success { background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; }
+        .flash.error { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
+        .flash.info { background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; }
+
+        .loading-overlay { position:fixed; top:64px; left:0; right:0; bottom:0; background:rgba(241,245,249,.7); display:none; align-items:center; justify-content:center; z-index:50; }
+        .loading-overlay.show { display:flex; }
+        .spinner { width:40px; height:40px; border:4px solid var(--border); border-top:4px solid var(--primary); border-radius:50%; animation:spin .7s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+
+        /* 차트 클릭 모달 */
+        .detail-modal-bg { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.4); z-index:200; display:none; align-items:center; justify-content:center; }
+        .detail-modal-bg.show { display:flex; }
+        .detail-modal { background:#fff; border-radius:14px; padding:1.5rem; max-width:600px; width:90vw; max-height:80vh; overflow-y:auto; box-shadow:0 8px 30px rgba(0,0,0,.2); }
+        .detail-modal h3 { margin-bottom:1rem; }
+        .detail-modal .close-btn { float:right; background:none; border:none; font-size:1.3rem; cursor:pointer; color:var(--text-light); }
+
+        @media(max-width:1200px) {
+            .kpi-grid { grid-template-columns:repeat(4, 1fr); }
+            .filter-bar { gap:.5rem; }
+            .month-grid { gap:1px; }
+            .month-cell { min-width:24px; font-size:.68rem; padding:.25rem .1rem; }
+        }
+        @media(max-width:768px) {
+            .chart-grid,.bottom-grid { grid-template-columns:1fr; }
+            .kpi-grid { grid-template-columns:repeat(2,1fr); }
+            .container { padding:1rem; }
+            .preset-group { gap:.2rem; }
+            .preset-btn { padding:.25rem .5rem; font-size:.72rem; }
+            .period-picker { flex-wrap:wrap; }
+            .month-grid { grid-template-columns:repeat(6, 1fr); }
+        }
+    </style>
+</head>
+<body>
+{% include '_sidebar.html' %}
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="flash-messages">{% for cat,msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+
+        {% if not has_data %}
+        <div class="empty-state">
+            <div class="icon">📊</div>
+            <h2>아직 데이터가 없습니다</h2>
+            <p>카드/통장/현금 내역 파일을 업로드하면 자동으로 분석됩니다</p>
+            <a href="/data">파일 업로드하기</a>
+        </div>
+        {% else %}
+
+        <!-- 필터 바 -->
+        <div class="filter-bar">
+            <!-- 프리셋 버튼 -->
+            <div class="preset-group">
+                <button class="preset-btn" onclick="applyPreset(1)">1개월</button>
+                <button class="preset-btn" onclick="applyPreset(3)">3개월</button>
+                <button class="preset-btn" onclick="applyPreset(6)">6개월</button>
+                <button class="preset-btn" onclick="applyPreset(12)">1년</button>
+                <button class="preset-btn" onclick="applyPreset(0)">전체</button>
+            </div>
+
+            <div class="filter-sep"></div>
+
+            <!-- 연도/월 그리드 피커 -->
+            <div class="period-picker">
+                <select class="year-select" id="yearSelect" onchange="renderMonthGrid()"></select>
+                <div class="month-grid" id="monthGrid"></div>
+            </div>
+
+            <!-- 숨겨진 실제 값 -->
+            <input type="hidden" id="monthFrom">
+            <input type="hidden" id="monthTo">
+
+            <div class="filter-sep"></div>
+
+            <label>정렬:</label>
+            <button class="sort-btn active" id="sortAsc" onclick="setSort('asc')">오름차순 ↑</button>
+            <button class="sort-btn" id="sortDesc" onclick="setSort('desc')">내림차순 ↓</button>
+
+            <div class="filter-sep"></div>
+
+            <label>항목:</label>
+            <div class="series-toggles" id="seriesToggles">
+                <span class="series-chip active" data-key="총수입" style="background:#dcfce7;color:#166534;" onclick="toggleSeries(this)">총수입</span>
+                <span class="series-chip active" data-key="총지출" style="background:#fee2e2;color:#991b1b;" onclick="toggleSeries(this)">총지출</span>
+                <span class="series-chip active" data-key="순이익" style="background:#dbeafe;color:#1d4ed8;" onclick="toggleSeries(this)">순이익</span>
+                <span class="series-chip active" data-key="고정비" style="background:#f3e8ff;color:#7c3aed;" onclick="toggleSeries(this)">고정비</span>
+                <span class="series-chip active" data-key="변동비" style="background:#fef3c7;color:#b45309;" onclick="toggleSeries(this)">변동비</span>
+            </div>
+
+            <span class="period-badge" id="periodBadge">-</span>
+            <a class="btn-dl" id="dlBtn" href="#">📥 리포트</a>
+        </div>
+
+        <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+
+        <!-- KPI -->
+        <div class="kpi-grid">
+            <div class="kpi-card income" onclick="showKpiDetail('총수입')"><div class="kpi-label">총수입</div><div class="kpi-value positive" id="kpiIncome">-</div></div>
+            <div class="kpi-card expense" onclick="showKpiDetail('총지출')"><div class="kpi-label">총지출</div><div class="kpi-value negative" id="kpiExpense">-</div></div>
+            <div class="kpi-card net" onclick="showKpiDetail('순이익')"><div class="kpi-label">순이익</div><div class="kpi-value" id="kpiNet">-</div><div class="kpi-sub" id="kpiMargin"></div></div>
+            <div class="kpi-card fixed" onclick="showKpiDetail('고정비')"><div class="kpi-label">고정비</div><div class="kpi-value" id="kpiFixed">-</div><div class="kpi-sub" id="kpiFixedRatio"></div></div>
+            <div class="kpi-card variable" onclick="showKpiDetail('변동비')"><div class="kpi-label">변동비</div><div class="kpi-value" id="kpiVariable">-</div><div class="kpi-sub" id="kpiVarRatio"></div></div>
+            <div class="kpi-card" onclick="showKpiDetail('거래건수')"><div class="kpi-label">거래 건수</div><div class="kpi-value" id="kpiCount">-</div><div class="kpi-sub" id="kpiUnclass">미분류 {{ unclass_count }}건</div></div>
+            <div class="kpi-card" id="forexCard" style="border-left:4px solid #0d9488;display:none" onclick="showKpiDetail('외화')"><div class="kpi-label">💱 외화 매출</div><div class="kpi-value" id="kpiForex" style="color:#0d9488">-</div><div class="kpi-sub" id="kpiForexSub"></div></div>
+        </div>
+
+        <!-- 클릭 상세 모달 -->
+        <div class="detail-modal-bg" id="detailModalBg" onclick="if(event.target===this)closeDetail()">
+            <div class="detail-modal">
+                <button class="close-btn" onclick="closeDetail()">&times;</button>
+                <h3 id="detailTitle"></h3>
+                <div id="detailContent"></div>
+            </div>
+        </div>
+
+        <!-- 차트 -->
+        <div class="chart-grid">
+            <div class="chart-card full">
+                <div class="chart-header">
+                    <h3 id="trendTitle">자금 흐름 추이</h3>
+                    <div class="chart-type-group" id="trendTypeGroup">
+                        <button class="chart-type-btn active" data-type="bar" onclick="setTrendType('bar',this)" title="막대 + 라인">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg>
+                            복합
+                        </button>
+                        <button class="chart-type-btn" data-type="bar-only" onclick="setTrendType('bar-only',this)" title="막대 그래프">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="10" width="4" height="11" rx="1"/><rect x="10" y="5" width="4" height="16" rx="1"/><rect x="17" y="8" width="4" height="13" rx="1"/></svg>
+                            막대
+                        </button>
+                        <button class="chart-type-btn" data-type="line" onclick="setTrendType('line',this)" title="라인 그래프">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,17 8,11 13,15 21,5"/><circle cx="8" cy="11" r="1.5" fill="currentColor"/><circle cx="13" cy="15" r="1.5" fill="currentColor"/></svg>
+                            라인
+                        </button>
+                        <button class="chart-type-btn" data-type="area" onclick="setTrendType('area',this)" title="영역 그래프">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3,20 L3,17 L8,11 L13,15 L21,5 L21,20 Z" fill="currentColor" opacity=".15"/><polyline points="3,17 8,11 13,15 21,5"/></svg>
+                            영역
+                        </button>
+                    </div>
+                </div>
+                <canvas id="trendChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>고정비 구성</h3>
+                    <div class="chart-type-group">
+                        <button class="chart-type-btn active" data-type="doughnut" onclick="setPieType('fixed','doughnut',this)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="8"/></svg>
+                            도넛
+                        </button>
+                        <button class="chart-type-btn" data-type="pie" onclick="setPieType('fixed','pie',this)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="12"/><line x1="12" y1="12" x2="20" y2="16"/></svg>
+                            원형
+                        </button>
+                        <button class="chart-type-btn" data-type="bar" onclick="setPieType('fixed','bar',this)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg>
+                            막대
+                        </button>
+                        <button class="chart-type-btn" data-type="polarArea" onclick="setPieType('fixed','polarArea',this)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+                            극좌표
+                        </button>
+                    </div>
+                </div>
+                <canvas id="fixedChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>변동비 구성</h3>
+                    <div class="chart-type-group">
+                        <button class="chart-type-btn active" data-type="doughnut" onclick="setPieType('variable','doughnut',this)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="8"/></svg>
+                            도넛
+                        </button>
+                        <button class="chart-type-btn" data-type="pie" onclick="setPieType('variable','pie',this)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="12"/><line x1="12" y1="12" x2="20" y2="16"/></svg>
+                            원형
+                        </button>
+                        <button class="chart-type-btn" data-type="bar" onclick="setPieType('variable','bar',this)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg>
+                            막대
+                        </button>
+                        <button class="chart-type-btn" data-type="polarArea" onclick="setPieType('variable','polarArea',this)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+                            극좌표
+                        </button>
+                    </div>
+                </div>
+                <canvas id="variableChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 하단 -->
+        <div class="bottom-grid">
+            <div class="info-card">
+                <h3>📈 지출 항목 TOP 10</h3>
+                <table><thead><tr><th>#</th><th>분류</th><th>항목</th><th class="amount">금액</th></tr></thead>
+                <tbody id="topTable"></tbody></table>
+            </div>
+            <div class="info-card">
+                <h3>💰 현금 흐름 예측</h3>
+                <div id="forecastSection"></div>
+                <h3 style="margin-top:1.5rem">📋 재무 조언</h3>
+                <div id="adviceSection"></div>
+                <div id="anomalySection"></div>
+            </div>
+        </div>
+
+        <script>
+        const FMT = v => new Intl.NumberFormat('ko-KR').format(Math.round(v));
+        const PIE_COLORS = ['#3b82f6','#ef4444','#f59e0b','#10b981','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#6366f1','#14b8a6','#e11d48'];
+        const SERIES_STYLES = {
+            '총수입':  { type:'bar', bg:'rgba(22,163,74,0.7)', border:'#16a34a', order:3 },
+            '총지출':  { type:'bar', bg:'rgba(220,38,38,0.7)', border:'#dc2626', order:3 },
+            '순이익':  { type:'line', bg:'rgba(37,99,235,0.1)', border:'#2563eb', order:1 },
+            '고정비':  { type:'line', bg:'rgba(124,58,237,0.1)', border:'#7c3aed', order:2 },
+            '변동비':  { type:'line', bg:'rgba(245,158,11,0.1)', border:'#f59e0b', order:2 },
+        };
+
+        let trendChart, fixedChart, variableChart;
+        let currentSort = 'asc';
+        let activeSeries = new Set(['총수입','총지출','순이익','고정비','변동비']);
+
+        // 초기화
+        const months = {{ months|tojson }};
+        const allMonths = [...months].sort(); // 오름차순 정렬
+        let _rangeFrom = allMonths[0];  // 가장 오래된
+        let _rangeTo = allMonths[allMonths.length - 1]; // 가장 최근
+        let _pickingStart = true; // true=시작월 선택 중, false=종료월 선택 중
+        let _activePreset = 0; // 현재 활성 프리셋 (0=전체)
+
+        document.getElementById('monthFrom').value = _rangeFrom;
+        document.getElementById('monthTo').value = _rangeTo;
+
+        // 연도 select 채우기
+        const years = [...new Set(allMonths.map(m => m.slice(0,4)))].sort();
+        const yearSel = document.getElementById('yearSelect');
+        years.forEach(y => {
+            const opt = document.createElement('option');
+            opt.value = y; opt.textContent = y + '년';
+            yearSel.appendChild(opt);
+        });
+        yearSel.value = _rangeTo.slice(0,4); // 최근 연도
+
+        function renderMonthGrid() {
+            const grid = document.getElementById('monthGrid');
+            const y = yearSel.value;
+            grid.innerHTML = '';
+            for (let m = 1; m <= 12; m++) {
+                const ym = y + '-' + String(m).padStart(2, '0');
+                const cell = document.createElement('div');
+                cell.className = 'month-cell';
+                cell.textContent = m + '월';
+                cell.dataset.ym = ym;
+
+                // 데이터 없는 월은 비활성
+                if (!allMonths.includes(ym)) {
+                    cell.classList.add('disabled');
+                } else {
+                    // 범위 표시
+                    if (ym === _rangeFrom && ym === _rangeTo) {
+                        cell.classList.add('start', 'end');
+                    } else if (ym === _rangeFrom) {
+                        cell.classList.add('start');
+                    } else if (ym === _rangeTo) {
+                        cell.classList.add('end');
+                    } else if (ym > _rangeFrom && ym < _rangeTo) {
+                        cell.classList.add('in-range');
+                    }
+                    cell.addEventListener('click', () => onMonthClick(ym));
+                }
+                grid.appendChild(cell);
+            }
+        }
+
+        function onMonthClick(ym) {
+            if (_pickingStart) {
+                _rangeFrom = ym;
+                _rangeTo = ym;
+                _pickingStart = false;
+            } else {
+                if (ym < _rangeFrom) {
+                    _rangeTo = _rangeFrom;
+                    _rangeFrom = ym;
+                } else {
+                    _rangeTo = ym;
+                }
+                _pickingStart = true;
+            }
+            _activePreset = null;
+            updatePresetButtons();
+            syncRange();
+        }
+
+        function syncRange() {
+            document.getElementById('monthFrom').value = _rangeFrom;
+            document.getElementById('monthTo').value = _rangeTo;
+            renderMonthGrid();
+            fetchData();
+        }
+
+        function applyPreset(n) {
+            _activePreset = n;
+            if (n === 0) {
+                // 전체
+                _rangeFrom = allMonths[0];
+                _rangeTo = allMonths[allMonths.length - 1];
+            } else {
+                // 최근 n개월
+                _rangeTo = allMonths[allMonths.length - 1];
+                const idx = Math.max(0, allMonths.length - n);
+                _rangeFrom = allMonths[idx];
+            }
+            _pickingStart = true;
+            updatePresetButtons();
+            // 연도 선택을 종료 월의 연도로 맞추기
+            yearSel.value = _rangeTo.slice(0,4);
+            syncRange();
+        }
+
+        function updatePresetButtons() {
+            document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+            if (_activePreset !== null) {
+                const presetMap = {1:0, 3:1, 6:2, 12:3, 0:4};
+                const idx = presetMap[_activePreset];
+                if (idx !== undefined) {
+                    document.querySelectorAll('.preset-btn')[idx]?.classList.add('active');
+                }
+            }
+        }
+
+        // 초기: 전체 프리셋 활성
+        applyPreset(0);
+
+        function setSort(order) {
+            currentSort = order;
+            document.getElementById('sortAsc').classList.toggle('active', order==='asc');
+            document.getElementById('sortDesc').classList.toggle('active', order==='desc');
+            fetchData();
+        }
+
+        function toggleSeries(el) {
+            const key = el.dataset.key;
+            if (activeSeries.has(key)) { activeSeries.delete(key); el.classList.remove('active'); }
+            else { activeSeries.add(key); el.classList.add('active'); }
+            fetchData();
+        }
+
+        function getParams() {
+            const from = document.getElementById('monthFrom').value;
+            const to = document.getElementById('monthTo').value;
+            const series = [...activeSeries].join(',');
+            return `from=${from}&to=${to}&sort=${currentSort}&series=${encodeURIComponent(series)}`;
+        }
+
+        // 거래내역 링크에 현재 기간 포함
+        function txLink(extra) {
+            const from = document.getElementById('monthFrom').value;
+            const to = document.getElementById('monthTo').value;
+            return `/transactions?from=${from}&to=${to}${extra ? '&' + extra : ''}`;
+        }
+
+        function openDetail(title, html) {
+            document.getElementById('detailTitle').textContent = title;
+            document.getElementById('detailContent').innerHTML = html;
+            document.getElementById('detailModalBg').classList.add('show');
+        }
+        function closeDetail() {
+            document.getElementById('detailModalBg').classList.remove('show');
+        }
+
+        function showKpiDetail(type) {
+            if (!_lastData) return;
+            const s = _lastData.summary;
+            const period = _lastData.period;
+            let title = '', html = '';
+
+            if (type === '총수입') {
+                title = `총수입 상세 (${period})`;
+                const trend = _lastData.trend;
+                html = `<div style="font-size:1.5rem;font-weight:700;color:var(--success);margin-bottom:1rem">${FMT(s.총수입)}원</div>`;
+                // 수입 카테고리 분류 (수입 중분류별)
+                html += '<h4 style="margin-bottom:.5rem;font-size:.9rem;color:var(--text-light)">수입 구성</h4>';
+                html += '<p style="font-size:.85rem;color:var(--text-light);margin-bottom:.8rem">상세 내역은 거래내역 페이지에서 확인 가능합니다.</p>';
+                // 월별/일별 추이 테이블
+                if (trend.labels.length > 0) {
+                    html += '<table><thead><tr><th>기간</th><th class="amount">수입</th></tr></thead><tbody>';
+                    trend.labels.forEach((l, i) => {
+                        const val = (trend.datasets['총수입'] || [])[i] || 0;
+                        html += `<tr><td>${l}</td><td class="amount" style="color:var(--success)">${FMT(val)}원</td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                }
+                html += `<div style="margin-top:1rem;text-align:center"><a href="${txLink('type=입금')}" style="color:var(--primary);font-weight:600">📋 입금 거래내역 보기 →</a></div>`;
+
+            } else if (type === '총지출') {
+                title = `총지출 상세 (${period})`;
+                html = `<div style="font-size:1.5rem;font-weight:700;color:var(--danger);margin-bottom:1rem">${FMT(s.총지출)}원</div>`;
+                html += `<div style="display:flex;gap:2rem;margin-bottom:1rem">`;
+                html += `<div><span style="color:var(--text-light);font-size:.85rem">고정비</span><div style="font-weight:700">${FMT(s.고정비)}원 <span style="color:var(--text-light);font-size:.8rem">(${s.고정비비율}%)</span></div></div>`;
+                html += `<div><span style="color:var(--text-light);font-size:.85rem">변동비</span><div style="font-weight:700">${FMT(s.변동비)}원 <span style="color:var(--text-light);font-size:.8rem">(${s.변동비비율}%)</span></div></div>`;
+                if (s.미분류지출 > 0) html += `<div><span style="color:var(--text-light);font-size:.85rem">기타</span><div style="font-weight:700">${FMT(s.미분류지출)}원</div></div>`;
+                html += '</div>';
+                // TOP 지출
+                const top = _lastData.top_expenses || [];
+                if (top.length) {
+                    html += '<h4 style="margin:.8rem 0 .5rem;font-size:.9rem;color:var(--text-light)">지출 TOP 항목</h4>';
+                    html += '<table><thead><tr><th>분류</th><th>항목</th><th class="amount">금액</th></tr></thead><tbody>';
+                    top.slice(0,7).forEach(it => { html += `<tr><td>${it.대분류}</td><td>${it.중분류}</td><td class="amount">${FMT(it.금액)}원</td></tr>`; });
+                    html += '</tbody></table>';
+                }
+                html += `<div style="margin-top:1rem;text-align:center"><a href="${txLink('type=출금')}" style="color:var(--primary);font-weight:600">📋 출금 거래내역 보기 →</a></div>`;
+
+            } else if (type === '순이익') {
+                title = `순이익 상세 (${period})`;
+                const isPositive = s.순이익 >= 0;
+                const margin = s.총수입 > 0 ? (s.순이익 / s.총수입 * 100).toFixed(1) : '0.0';
+                html = `<div style="font-size:1.5rem;font-weight:700;color:${isPositive?'var(--success)':'var(--danger)'};margin-bottom:.5rem">${isPositive?'+':''}${FMT(s.순이익)}원</div>`;
+                html += `<div style="color:var(--text-light);margin-bottom:1rem">이익률 ${margin}%</div>`;
+                html += '<table><tbody>';
+                html += `<tr><td style="font-weight:600">총수입</td><td class="amount" style="color:var(--success)">+${FMT(s.총수입)}원</td></tr>`;
+                html += `<tr><td style="font-weight:600">총지출</td><td class="amount" style="color:var(--danger)">-${FMT(s.총지출)}원</td></tr>`;
+                html += `<tr style="border-top:2px solid var(--border)"><td style="font-weight:700">순이익</td><td class="amount" style="font-weight:700;color:${isPositive?'var(--success)':'var(--danger)'}"> ${isPositive?'+':''}${FMT(s.순이익)}원</td></tr>`;
+                html += '</tbody></table>';
+                // 월별 추이
+                const trend = _lastData.trend;
+                if (trend.labels.length > 1 && trend.datasets['순이익']) {
+                    html += '<h4 style="margin:1rem 0 .5rem;font-size:.9rem;color:var(--text-light)">기간별 순이익 추이</h4>';
+                    html += '<table><thead><tr><th>기간</th><th class="amount">순이익</th></tr></thead><tbody>';
+                    trend.labels.forEach((l, i) => {
+                        const val = trend.datasets['순이익'][i] || 0;
+                        html += `<tr><td>${l}</td><td class="amount" style="color:${val>=0?'var(--success)':'var(--danger)'}"> ${val>=0?'+':''}${FMT(val)}원</td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                }
+
+            } else if (type === '고정비') {
+                title = `고정비 상세 (${period})`;
+                html = `<div style="font-size:1.5rem;font-weight:700;margin-bottom:.3rem">${FMT(s.고정비)}원</div>`;
+                html += `<div style="color:var(--text-light);margin-bottom:1rem">전체 지출의 ${s.고정비비율}%</div>`;
+                const fixed = _lastData.fixed || {};
+                if (fixed.labels && fixed.labels.length) {
+                    html += '<table><thead><tr><th>항목</th><th class="amount">금액</th><th class="amount">비중</th></tr></thead><tbody>';
+                    const total = fixed.values.reduce((a,b)=>a+b,0);
+                    fixed.labels.forEach((l, i) => {
+                        const v = fixed.values[i];
+                        html += `<tr style="cursor:pointer" onclick="closeDetail();window.location.href=txLink('category=고정비&subcategory=${l}')"><td>${l}</td><td class="amount">${FMT(v)}원</td><td class="amount">${(v/total*100).toFixed(1)}%</td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                }
+                html += `<div style="margin-top:1rem;text-align:center"><a href="${txLink('category=고정비')}" style="color:var(--primary);font-weight:600">📋 고정비 전체 보기 →</a></div>`;
+
+            } else if (type === '변동비') {
+                title = `변동비 상세 (${period})`;
+                html = `<div style="font-size:1.5rem;font-weight:700;margin-bottom:.3rem">${FMT(s.변동비)}원</div>`;
+                html += `<div style="color:var(--text-light);margin-bottom:1rem">전체 지출의 ${s.변동비비율}%</div>`;
+                const variable = _lastData.variable || {};
+                if (variable.labels && variable.labels.length) {
+                    html += '<table><thead><tr><th>항목</th><th class="amount">금액</th><th class="amount">비중</th></tr></thead><tbody>';
+                    const total = variable.values.reduce((a,b)=>a+b,0);
+                    variable.labels.forEach((l, i) => {
+                        const v = variable.values[i];
+                        html += `<tr style="cursor:pointer" onclick="closeDetail();window.location.href=txLink('category=변동비&subcategory=${l}')"><td>${l}</td><td class="amount">${FMT(v)}원</td><td class="amount">${(v/total*100).toFixed(1)}%</td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                }
+                html += `<div style="margin-top:1rem;text-align:center"><a href="${txLink('category=변동비')}" style="color:var(--primary);font-weight:600">📋 변동비 전체 보기 →</a></div>`;
+
+            } else if (type === '거래건수') {
+                title = `거래 현황 (${period})`;
+                html = `<div style="font-size:1.5rem;font-weight:700;margin-bottom:1rem">${FMT(s.거래건수)}건</div>`;
+                // 월별 건수 추이
+                const trend = _lastData.trend;
+                if (trend.labels.length > 0) {
+                    html += '<p style="color:var(--text-light);font-size:.85rem;margin-bottom:.5rem">기간별 거래 금액 추이</p>';
+                    html += '<table><thead><tr><th>기간</th><th class="amount">수입</th><th class="amount">지출</th></tr></thead><tbody>';
+                    trend.labels.forEach((l, i) => {
+                        const inc = (trend.datasets['총수입'] || [])[i] || 0;
+                        const exp = (trend.datasets['총지출'] || [])[i] || 0;
+                        html += `<tr><td>${l}</td><td class="amount" style="color:var(--success)">${FMT(inc)}원</td><td class="amount" style="color:var(--danger)">${FMT(exp)}원</td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                }
+                html += `<div style="margin-top:1rem;text-align:center"><a href="${txLink()}" style="color:var(--primary);font-weight:600">📋 전체 거래내역 보기 →</a></div>`;
+
+            } else if (type === '외화') {
+                const fx = _lastData.forex;
+                title = `외화 매출 상세 (${period})`;
+                if (fx && !fx.데이터없음) {
+                    html = `<div style="font-size:1.5rem;font-weight:700;color:#0d9488;margin-bottom:.3rem">$${Number(fx.OTA매출USD||0).toLocaleString('en-US',{minimumFractionDigits:2})}</div>`;
+                    html += `<div style="color:var(--text-light);margin-bottom:1rem">${fx.OTA건수||0}건 · 평균환율 ₩${(fx.avg_rate||0).toLocaleString()}</div>`;
+                    html += `<div style="margin-top:1rem;text-align:center"><a href="/forex" style="color:#0d9488;font-weight:600">💱 외화계좌 상세 페이지 →</a></div>`;
+                } else {
+                    html = '<p style="color:var(--text-light)">해당 기간 외화 데이터가 없습니다.</p>';
+                }
+            }
+
+            openDetail(title, html);
+        }
+
+        async function fetchData() {
+            document.getElementById('loadingOverlay').classList.add('show');
+            try {
+                const res = await fetch('/api/dashboard?' + getParams());
+                const d = await res.json();
+                render(d);
+            } catch(e) { console.error(e); }
+            document.getElementById('loadingOverlay').classList.remove('show');
+        }
+
+        let _lastData = null;
+        function render(d) {
+            _lastData = d;
+            const s = d.summary;
+            // KPI
+            document.getElementById('kpiIncome').textContent = FMT(s.총수입) + '원';
+            document.getElementById('kpiExpense').textContent = FMT(s.총지출) + '원';
+            const netEl = document.getElementById('kpiNet');
+            netEl.textContent = (s.순이익>=0?'+':'') + FMT(s.순이익) + '원';
+            netEl.className = 'kpi-value ' + (s.순이익>=0?'positive':'negative');
+            document.getElementById('kpiMargin').textContent = s.총수입>0 ? '이익률 '+(s.순이익/s.총수입*100).toFixed(1)+'%' : '';
+            document.getElementById('kpiFixed').textContent = FMT(s.고정비) + '원';
+            document.getElementById('kpiFixedRatio').textContent = '지출의 ' + s.고정비비율 + '%';
+            document.getElementById('kpiVariable').textContent = FMT(s.변동비) + '원';
+            document.getElementById('kpiVarRatio').textContent = '지출의 ' + s.변동비비율 + '%';
+            document.getElementById('kpiCount').textContent = FMT(s.거래건수) + '건';
+
+            document.getElementById('periodBadge').textContent = d.period;
+            const from = document.getElementById('monthFrom').value;
+            document.getElementById('dlBtn').href = '/download_report?month=' + from;
+
+            // 외화 KPI (필터 연동)
+            const fc = document.getElementById('forexCard');
+            if (d.forex && !d.forex.데이터없음) {
+                fc.style.display = '';
+                const otaUsd = d.forex.OTA매출USD || 0;
+                document.getElementById('kpiForex').textContent = '$' + Number(otaUsd).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+                const avgRate = d.forex.avg_rate || 0;
+                document.getElementById('kpiForexSub').textContent = avgRate ? `평균환율 ₩${avgRate.toLocaleString()}` : `${(d.forex.OTA건수 || 0)}건`;
+            } else {
+                fc.style.display = 'none';
+            }
+
+            // 추이 차트
+            renderTrend(d.trend);
+            // 파이 차트
+            renderPie('fixedChart', 'fixedChart', d.fixed, '고정비 구성');
+            renderPie('variableChart', 'variableChart', d.variable, '변동비 구성');
+            // TOP 10
+            renderTop(d.top_expenses);
+            // 예측 & 조언
+            renderForecast(d.forecast);
+            renderAdvice(d.advice);
+            renderAnomalies(d.anomalies);
+        }
+
+        let _lastTrend = null;
+        let _trendType = 'bar'; // bar(복합), bar-only, line, area
+
+        function setTrendType(type, btn) {
+            _trendType = type;
+            btn.closest('.chart-type-group').querySelectorAll('.chart-type-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if (_lastTrend) renderTrend(_lastTrend);
+        }
+
+        function renderTrend(trend) {
+            _lastTrend = trend;
+            const isDaily = trend.mode === 'daily';
+            document.getElementById('trendTitle').textContent = isDaily ? '일별 자금 흐름 추이' : '월별 자금 흐름 추이';
+
+            const datasets = [];
+            for (const [key, values] of Object.entries(trend.datasets)) {
+                const style = SERIES_STYLES[key] || {};
+                const ds = {
+                    label: key, data: values, order: style.order || 3,
+                };
+
+                if (_trendType === 'bar') {
+                    // 복합: 수입/지출은 bar, 나머지는 line
+                    if (style.type === 'line') {
+                        ds.type = 'line'; ds.borderColor = style.border;
+                        ds.backgroundColor = style.bg; ds.fill = true;
+                        ds.borderWidth = isDaily ? 2 : 2.5;
+                        ds.pointRadius = isDaily ? 1.5 : 3;
+                        ds.pointHoverRadius = isDaily ? 4 : 6;
+                        ds.pointBackgroundColor = style.border;
+                        ds.pointBorderColor = '#fff';
+                        ds.pointBorderWidth = 1.5;
+                        ds.tension = 0.3;
+                    } else {
+                        ds.backgroundColor = style.bg;
+                        ds.borderRadius = isDaily ? 2 : 4;
+                        ds.barPercentage = isDaily ? 0.6 : 0.75;
+                        ds.borderWidth = 0;
+                    }
+                } else if (_trendType === 'bar-only') {
+                    // 전부 bar
+                    ds.backgroundColor = style.bg || style.border;
+                    ds.borderRadius = isDaily ? 2 : 4;
+                    ds.barPercentage = isDaily ? 0.5 : 0.7;
+                    ds.borderWidth = 0;
+                    ds.order = 1;
+                } else if (_trendType === 'line') {
+                    // 전부 line
+                    ds.type = 'line';
+                    ds.borderColor = style.border;
+                    ds.backgroundColor = 'transparent';
+                    ds.fill = false;
+                    ds.borderWidth = isDaily ? 2 : 2.5;
+                    ds.pointRadius = isDaily ? 2 : 3.5;
+                    ds.pointHoverRadius = isDaily ? 5 : 7;
+                    ds.pointBackgroundColor = style.border;
+                    ds.pointBorderColor = '#fff';
+                    ds.pointBorderWidth = 2;
+                    ds.tension = 0.35;
+                    ds.order = 1;
+                } else if (_trendType === 'area') {
+                    // 영역 차트
+                    ds.type = 'line';
+                    ds.borderColor = style.border;
+                    ds.backgroundColor = (style.bg || style.border).replace(/[\d.]+\)$/, '0.25)');
+                    ds.fill = true;
+                    ds.borderWidth = 2;
+                    ds.pointRadius = isDaily ? 0 : 2.5;
+                    ds.pointHoverRadius = isDaily ? 4 : 6;
+                    ds.pointBackgroundColor = style.border;
+                    ds.pointBorderColor = '#fff';
+                    ds.pointBorderWidth = 1.5;
+                    ds.tension = 0.4;
+                    ds.order = 1;
+                }
+                datasets.push(ds);
+            }
+
+            if (trendChart) trendChart.destroy();
+            const baseType = (_trendType === 'bar' || _trendType === 'bar-only') ? 'bar' : 'line';
+            trendChart = new Chart(document.getElementById('trendChart'), {
+                type: baseType,
+                data: { labels: trend.labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: { mode:'index', intersect:false },
+                    onClick: (evt, elements) => {
+                        if (elements.length > 0) {
+                            const idx = elements[0].index;
+                            const label = trend.labels[idx];
+                            showTrendDetail(label, trend, idx);
+                        }
+                    },
+                    plugins: {
+                        legend: { position:'top', labels:{ boxWidth:10, padding:12, font:{size:11}, usePointStyle:true, pointStyle:'circle' } },
+                        tooltip: {
+                            backgroundColor:'rgba(15,23,42,.9)', titleFont:{size:12,weight:'600'},
+                            bodyFont:{size:11}, padding:10, cornerRadius:8, boxPadding:4,
+                            callbacks: { label: ctx => ' ' + ctx.dataset.label+': '+FMT(ctx.raw)+'원' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display:false },
+                            ticks: { font: { size: isDaily ? 9 : 11 }, maxRotation: isDaily ? 45 : 0, color:'#94a3b8' }
+                        },
+                        y: {
+                            grid: { color:'rgba(226,232,240,.6)', drawBorder:false },
+                            ticks: { callback: v => (v/10000).toLocaleString()+'만', font:{size:11}, color:'#94a3b8', padding:8 },
+                            border: { display:false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function showTrendDetail(label, trend, idx) {
+            const title = (_lastTrend.mode === 'daily') ? label + ' 상세' : label + ' 상세';
+            let html = '<table style="width:100%"><thead><tr><th>항목</th><th class="amount">금액</th></tr></thead><tbody>';
+            for (const [key, values] of Object.entries(trend.datasets)) {
+                const val = values[idx] || 0;
+                const color = key === '총수입' ? 'var(--success)' : key === '총지출' ? 'var(--danger)' : key === '순이익' ? 'var(--primary)' : 'var(--text)';
+                html += `<tr><td style="font-weight:600">${key}</td><td class="amount" style="color:${color}">${FMT(val)}원</td></tr>`;
+            }
+            html += '</tbody></table>';
+            // 거래내역 링크
+            if (_lastTrend.mode === 'daily') {
+                const y = document.getElementById('monthFrom').value.slice(0,4);
+                const fullDate = y + '-' + label;
+                html += `<div style="margin-top:1rem;text-align:center"><a href="/transactions?date=${fullDate}" style="color:var(--primary);font-weight:600;font-size:.9rem">📋 해당일 거래내역 보기 →</a></div>`;
+            } else {
+                html += `<div style="margin-top:1rem;text-align:center"><a href="/transactions?month=${label}&from=${label}&to=${label}" style="color:var(--primary);font-weight:600;font-size:.9rem">📋 해당월 거래내역 보기 →</a></div>`;
+            }
+            openDetail(title, html);
+        }
+
+        // 카테고리 차트 타입 상태 & 데이터 저장
+        let _pieTypes = { fixed: 'doughnut', variable: 'doughnut' };
+        let _pieData = { fixed: null, variable: null };
+        let _pieTitles = { fixed: '고정비 구성', variable: '변동비 구성' };
+
+        function setPieType(which, type, btn) {
+            _pieTypes[which] = type;
+            btn.closest('.chart-type-group').querySelectorAll('.chart-type-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if (_pieData[which]) {
+                const canvasId = which === 'fixed' ? 'fixedChart' : 'variableChart';
+                renderPie(canvasId, canvasId, _pieData[which], _pieTitles[which]);
+            }
+        }
+
+        function renderPie(canvasId, chartVar, data, title) {
+            const canvas = document.getElementById(canvasId);
+            if (chartVar === 'fixedChart' && fixedChart) fixedChart.destroy();
+            if (chartVar === 'variableChart' && variableChart) variableChart.destroy();
+
+            const which = title.includes('고정비') ? 'fixed' : 'variable';
+            _pieData[which] = data;
+            const chartType = _pieTypes[which];
+
+            if (!data.labels.length) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#94a3b8'; ctx.textAlign = 'center'; ctx.font = '14px sans-serif';
+                ctx.fillText('데이터 없음', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            const colors = PIE_COLORS.slice(0, data.labels.length);
+            const catType = title.includes('고정비') ? '고정비' : '변동비';
+
+            // 공통 onClick
+            const onChartClick = (evt, elements) => {
+                if (elements.length > 0) {
+                    const idx = elements[0].index;
+                    const name = data.labels[idx];
+                    const val = data.values[idx];
+                    const total = data.values.reduce((a, b) => a + b, 0);
+                    const pct = (val / total * 100).toFixed(1);
+                    openDetail(`${catType} > ${name}`, `
+                        <div style="font-size:1.3rem;font-weight:700;margin-bottom:.5rem">${FMT(val)}원</div>
+                        <div style="color:var(--text-light);margin-bottom:1rem">${catType} 내 비중 ${pct}%</div>
+                        <a href="${txLink('category=' + catType + '&subcategory=' + name)}" style="color:var(--primary);font-weight:600;font-size:.9rem">📋 해당 거래내역 보기 →</a>
+                    `);
+                }
+            };
+
+            // 공통 tooltip
+            const tooltipConfig = {
+                backgroundColor: 'rgba(15,23,42,.9)', cornerRadius: 8, padding: 10, boxPadding: 4,
+                titleFont: { size: 12, weight: '600' }, bodyFont: { size: 11 },
+                callbacks: {
+                    label: ctx => {
+                        const total = data.values.reduce((a, b) => a + b, 0);
+                        return ' ' + ctx.label + ': ' + FMT(ctx.raw) + '원 (' + (ctx.raw / total * 100).toFixed(1) + '%)';
+                    }
+                }
+            };
+
+            let chart;
+
+            if (chartType === 'bar') {
+                chart = new Chart(canvas, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{ data: data.values, backgroundColor: colors, borderWidth: 0, borderRadius: 6, barPercentage: 0.7 }]
+                    },
+                    options: {
+                        indexAxis: 'y', responsive: true, maintainAspectRatio: true,
+                        onClick: onChartClick,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: tooltipConfig
+                        },
+                        scales: {
+                            x: { grid: { color: 'rgba(226,232,240,.5)' }, ticks: { callback: v => (v / 10000).toLocaleString() + '만', font: { size: 10 }, color: '#94a3b8' }, border: { display: false } },
+                            y: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' }, color: '#475569' } }
+                        }
+                    }
+                });
+            } else {
+                chart = new Chart(canvas, {
+                    type: chartType,
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            data: data.values, backgroundColor: colors,
+                            borderWidth: chartType === 'polarArea' ? 1 : 2,
+                            borderColor: chartType === 'polarArea' ? 'rgba(255,255,255,.5)' : '#fff',
+                            hoverOffset: chartType === 'polarArea' ? 0 : 8,
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: true,
+                        cutout: chartType === 'doughnut' ? '55%' : undefined,
+                        onClick: onChartClick,
+                        plugins: {
+                            legend: { position: 'right', labels: { boxWidth: 10, padding: 10, font: { size: 11 }, usePointStyle: true, pointStyle: 'circle' } },
+                            tooltip: tooltipConfig
+                        },
+                        scales: chartType === 'polarArea' ? {
+                            r: { ticks: { display: false }, grid: { color: 'rgba(226,232,240,.4)' } }
+                        } : {}
+                    }
+                });
+            }
+
+            if (chartVar === 'fixedChart') fixedChart = chart;
+            else variableChart = chart;
+        }
+
+        function renderTop(items) {
+            const tbody = document.getElementById('topTable');
+            tbody.innerHTML = items.map((it,i) =>
+                `<tr style="cursor:pointer" onclick="window.location.href=txLink('category=${it.대분류}&subcategory=${it.중분류}')"><td>${i+1}</td><td>${it.대분류}</td><td>${it.중분류}</td><td class="amount">${FMT(it.금액)}원</td></tr>`
+            ).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-light)">데이터 없음</td></tr>';
+        }
+
+        function renderForecast(f) {
+            document.getElementById('forecastSection').innerHTML = [
+                ['기준 기간', f.기준기간],
+                ['월평균 수입', '<span class="positive">'+FMT(f.월평균수입)+'원</span>'],
+                ['월평균 총지출', '<span class="negative">'+FMT(f.월평균총지출)+'원</span>'],
+                ['최소 필요 자금', FMT(f.최소필요자금)+'원'],
+                ['권장 보유 자금', '<span style="color:var(--primary)">'+FMT(f.권장보유자금)+'원</span>'],
+            ].map(([l,v]) => `<div class="forecast-item"><span class="forecast-label">${l}</span><span class="forecast-value">${v}</span></div>`).join('');
+        }
+
+        function renderAdvice(list) {
+            document.getElementById('adviceSection').innerHTML = list.map(a => {
+                const cls = a.includes('⚠️')||a.includes('🚨') ? 'alert' : a.includes('✅') ? 'ok' : '';
+                return `<div class="advice-item ${cls}">${a}</div>`;
+            }).join('');
+        }
+
+        function renderAnomalies(list) {
+            if (!list.length) { document.getElementById('anomalySection').innerHTML = ''; return; }
+            document.getElementById('anomalySection').innerHTML =
+                '<h3 style="margin-top:1.5rem">🔔 이상 항목</h3><table><thead><tr><th>항목</th><th class="amount">금액</th><th>배율</th></tr></thead><tbody>' +
+                list.map(a => `<tr style="background:#fff7ed"><td>${a.중분류}</td><td class="amount">${FMT(a.이번달)}원</td><td><span class="anomaly-badge">${a.배율.toFixed(1)}배</span></td></tr>`).join('') +
+                '</tbody></table>';
+        }
+
+        // 초기 로드
+        fetchData();
+        </script>
+        {% endif %}
+    </div>
+</body>
+</html>

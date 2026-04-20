@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터 현황 — 회계 분석</title>
+    <style>
+        :root {
+            --primary: #2563eb; --primary-dark: #1d4ed8; --success: #16a34a;
+            --danger: #dc2626; --warning: #d97706; --bg: #f1f5f9; --card: #ffffff;
+            --text: #1e293b; --text-light: #64748b; --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+        /* nav CSS removed — using sidebar */
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+
+        .page-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 1.5rem; }
+
+        /* Flash messages */
+        .flash-messages { margin-bottom: 1rem; }
+        .flash { padding: 0.8rem 1.2rem; border-radius: 8px; font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .flash.success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .flash.error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .flash.info { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+
+        /* Upload area */
+        .upload-section { background: var(--card); border-radius: 12px; padding: 1.5rem; box-shadow: var(--shadow); margin-bottom: 1.5rem; }
+        .upload-section h3 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border); }
+        .upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 2rem; text-align: center; transition: all 0.2s; cursor: pointer; }
+        .upload-zone:hover, .upload-zone.dragover { border-color: var(--primary); background: #eff6ff; }
+        .upload-zone p { color: var(--text-light); font-size: 0.9rem; margin-top: 0.5rem; }
+        .upload-zone .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .upload-zone input[type="file"] { display: none; }
+        .file-list { margin-top: 1rem; }
+        .file-list .file-item { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.8rem; background: #f8fafc; border-radius: 6px; margin-bottom: 0.3rem; font-size: 0.88rem; }
+        .file-list .file-item .remove-file { color: var(--danger); cursor: pointer; font-weight: 600; border: none; background: none; font-size: 1rem; }
+        .btn-upload { display: inline-block; margin-top: 1rem; background: var(--primary); color: white; padding: 0.6rem 1.5rem; border-radius: 8px; border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
+        .btn-upload:hover { background: var(--primary-dark); }
+        .btn-upload:disabled { background: #94a3b8; cursor: not-allowed; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card { background: var(--card); border-radius: 12px; padding: 1.2rem; box-shadow: var(--shadow); text-align: center; }
+        .stat-card .label { font-size: 0.8rem; color: var(--text-light); font-weight: 500; }
+        .stat-card .value { font-size: 1.6rem; font-weight: 700; margin-top: 0.3rem; }
+        .stat-card .sub { font-size: 0.78rem; color: var(--text-light); margin-top: 0.2rem; }
+
+        .section { background: var(--card); border-radius: 12px; padding: 1.5rem; box-shadow: var(--shadow); margin-bottom: 1.5rem; }
+        .section h3 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border); }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; font-size: 0.78rem; color: var(--text-light); padding: 0.6rem 0.8rem; font-weight: 600; border-bottom: 2px solid var(--border); }
+        td { padding: 0.6rem 0.8rem; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+        tr:hover td { background: #f8fafc; }
+        .amount { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .amount.positive { color: var(--success); }
+        .amount.negative { color: var(--danger); }
+
+        .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .badge.통장 { background: #d1fae5; color: #065f46; }
+        .badge.카드 { background: #dbeafe; color: #1d4ed8; }
+        .badge.현금 { background: #fef9c3; color: #854d0e; }
+        .badge.기타 { background: #f1f5f9; color: #475569; }
+
+        .classify-bar { display: flex; height: 24px; border-radius: 6px; overflow: hidden; margin: 0.5rem 0 1rem; }
+        .classify-bar .seg { display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; color: white; min-width: 30px; }
+        .seg.고정비 { background: #7c3aed; }
+        .seg.변동비 { background: #f59e0b; }
+        .seg.수입 { background: #16a34a; }
+        .seg.미분류 { background: #94a3b8; }
+
+        .file-icon { margin-right: 0.4rem; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        @media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+
+        .btn-delete { background: none; border: 1px solid var(--danger); color: var(--danger); padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+        .btn-delete:hover { background: var(--danger); color: white; }
+        .btn-action { background: none; border: 1px solid var(--border); padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+        .btn-action.open { font-size: 0.85rem; padding: 0.15rem 0.4rem; }
+        .btn-action.open:hover { background: #eff6ff; border-color: var(--primary); }
+        .btn-action.rename { font-size: 0.85rem; padding: 0.15rem 0.4rem; }
+        .btn-action.rename:hover { background: #fef3c7; border-color: var(--warning); }
+        .btn-action.retry { background: none; border: 1px solid var(--warning); color: var(--warning); }
+        .btn-action.retry:hover { background: var(--warning); color: white; }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: white; border-radius: 12px; padding: 1.5rem; max-width: 420px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+        .account-row { display: flex; align-items: center; gap: 1rem; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+        .account-row:last-of-type { border-bottom: none; }
+        .account-name { font-weight: 600; min-width: 180px; }
+        .account-number { color: var(--text-light); font-family: monospace; font-size: 0.88rem; flex: 1; }
+        .account-add-form { display: flex; gap: 0.6rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+        .input-field { border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 0.88rem; flex: 1; outline: none; }
+        .input-field:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
+        .btn-add { background: var(--primary); color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 8px; font-weight: 600; font-size: 0.88rem; cursor: pointer; white-space: nowrap; }
+        .btn-add:hover { background: var(--primary-dark); }
+
+        .btn-tab { padding: 0.35rem 0.8rem; border: 2px solid var(--border); border-radius: 8px; background: white; font-size: 0.82rem; font-weight: 600; color: var(--text-light); cursor: pointer; }
+        .btn-tab.active { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
+        .btn-tab:hover { border-color: var(--primary); }
+        .role-badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 4px; font-size: 0.72rem; font-weight: 600; }
+        .role-badge.가이드 { background: #dbeafe; color: #1d4ed8; }
+        .role-badge.기사 { background: #fef3c7; color: #92400e; }
+        .role-badge.보조 { background: #f3e8ff; color: #7c3aed; }
+        .people-row { display: flex; align-items: center; gap: 0.8rem; padding: 0.5rem 0.8rem; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+        .people-row:hover { background: #f8fafc; }
+        .people-row .p-name { font-weight: 600; min-width: 80px; }
+        .people-row .p-status { font-size: 0.78rem; color: var(--text-light); }
+        .people-row .p-actions { margin-left: auto; display: flex; gap: 0.3rem; }
+        .people-row select { padding: 0.2rem 0.4rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.78rem; }
+
+        .modal h4 { font-size: 1.1rem; margin-bottom: 0.8rem; }
+        .modal p { font-size: 0.9rem; color: var(--text-light); margin-bottom: 1.2rem; line-height: 1.5; }
+        .modal .modal-actions { display: flex; gap: 0.8rem; justify-content: flex-end; }
+        .modal .btn-cancel { background: var(--border); color: var(--text); border: none; padding: 0.5rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .modal .btn-confirm-delete { background: var(--danger); color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    </style>
+</head>
+<body>
+{% include '_sidebar.html' %}
+
+    <div class="container">
+        <div class="page-title">데이터 현황</div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- 파일 업로드 영역 -->
+        <div class="upload-section">
+            <h3>파일 업로드</h3>
+            <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+                <div class="upload-zone" id="dropZone">
+                    <div class="icon">📂</div>
+                    <div><strong>파일을 드래그하거나 클릭하여 선택</strong></div>
+                    <p>은행 거래내역(원화/외화), 카드 사용내역 엑셀 파일 (.xlsx, .csv)</p>
+                    <input type="file" name="files" id="fileInput" multiple accept=".xlsx,.xls,.csv">
+                </div>
+                <div class="file-list" id="fileList"></div>
+                <button type="submit" class="btn-upload" id="btnUpload" disabled>업로드</button>
+            </form>
+        </div>
+
+        <!-- 자체 계좌 관리 -->
+        <div class="section">
+            <h3>자체 계좌 관리 <span style="font-size:0.8rem; color:var(--text-light); font-weight:400;">— 등록된 계좌 간 이체 거래는 분석에서 자동 제외됩니다</span></h3>
+            <div id="accountsList">
+                {% for acc in own_accounts.get('accounts', []) %}
+                <div class="account-row" data-number="{{ acc.number }}">
+                    <span class="account-name">{{ acc.name }}</span>
+                    <span class="account-number">{{ acc.number }}</span>
+                    <button class="btn-delete" onclick="deleteAccount('{{ acc.number }}')">삭제</button>
+                </div>
+                {% endfor %}
+                {% if not own_accounts.get('accounts', []) %}
+                <p class="no-accounts" style="color:var(--text-light); font-size:0.9rem;">등록된 계좌가 없습니다.</p>
+                {% endif %}
+            </div>
+            <div class="account-add-form">
+                <input type="text" id="accName" placeholder="계좌명 (예: 기업은행 원화 주거래)" class="input-field">
+                <input type="text" id="accNumber" placeholder="계좌번호 (예: 023-137200-04-012)" class="input-field">
+                <button class="btn-add" onclick="addAccount()">추가</button>
+            </div>
+        </div>
+
+        <!-- 인력 관리 -->
+        <div class="section">
+            <h3>인력 관리 <span style="font-size:0.8rem; color:var(--text-light); font-weight:400;">— 등록된 인력 이름으로 거래 자동 분류 (가이드비/차량비/보조비)</span></h3>
+            <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
+                <button class="btn-tab active" onclick="filterPeople('전체',this)">전체 <span id="cnt-all">0</span></button>
+                <button class="btn-tab" onclick="filterPeople('가이드',this)">가이드 <span id="cnt-guide">0</span></button>
+                <button class="btn-tab" onclick="filterPeople('기사',this)">기사 <span id="cnt-driver">0</span></button>
+                <button class="btn-tab" onclick="filterPeople('보조',this)">보조 <span id="cnt-staff">0</span></button>
+            </div>
+            <div id="peopleList" style="max-height:300px;overflow-y:auto"></div>
+            <div class="account-add-form">
+                <input type="text" id="pName" placeholder="이름" class="input-field" style="flex:1">
+                <select id="pRole" class="input-field" style="flex:0.6">
+                    <option value="가이드">가이드</option>
+                    <option value="기사">기사</option>
+                    <option value="보조">보조</option>
+                </select>
+                <button class="btn-add" onclick="addPerson()">추가</button>
+            </div>
+        </div>
+
+        <!-- 자체이체 키워드 관리 -->
+        <div class="section">
+            <h3>자체이체 감지 키워드 <span style="font-size:0.8rem; color:var(--text-light); font-weight:400;">— 적요/거래처에 포함되면 자체이체로 자동 제외</span></h3>
+            <div id="keywordsList" style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem;">
+                {% for kw in own_accounts.get('keywords', []) %}
+                <div style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.4rem 0.8rem; background:#fef3c7; color:#92400e; border-radius:8px; font-size:0.85rem; font-weight:500;">
+                    {{ kw }}
+                    <button style="background:none; border:none; color:#92400e; font-size:1rem; cursor:pointer; padding:0; line-height:1; opacity:0.6;" onclick="deleteKeyword('{{ kw }}')" title="삭제">&times;</button>
+                </div>
+                {% endfor %}
+                {% if not own_accounts.get('keywords', []) %}
+                <p style="color:var(--text-light); font-size:0.9rem;">등록된 키워드가 없습니다.</p>
+                {% endif %}
+            </div>
+            <div class="account-add-form">
+                <input type="text" id="kwInput" placeholder="키워드 입력 (예: 주식회사 트립퍼)" class="input-field" onkeydown="if(event.key==='Enter')addKeyword()">
+                <button class="btn-add" onclick="addKeyword()">추가</button>
+            </div>
+        </div>
+
+        {% if not has_data %}
+        <div class="section" style="text-align:center; padding:3rem">
+            <p style="font-size:1.1rem; color:var(--text-light)">아직 업로드된 데이터가 없습니다. 위에서 파일을 업로드해주세요.</p>
+        </div>
+        {% else %}
+
+        <!-- 요약 통계 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="label">총 거래 건수</div>
+                <div class="value">{{ "{:,}".format(total) }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">데이터 기간</div>
+                <div class="value" style="font-size:1rem">{{ date_min }}</div>
+                <div class="sub">~ {{ date_max }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">업로드된 파일</div>
+                <div class="value">{{ file_stats|length }}개</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">분류율</div>
+                <div class="value" style="color:{% if classify_total > 0 and classified / classify_total * 100 > 70 %}var(--success){% elif classify_total > 0 and classified / classify_total * 100 > 40 %}var(--warning){% else %}var(--danger){% endif %}">
+                    {% if classify_total > 0 %}{{ "{:.1f}".format(classified / classify_total * 100) }}%{% else %}0%{% endif %}
+                </div>
+                <div class="sub">{{ classified }} / {{ classify_total }}건</div>
+            </div>
+        </div>
+
+        <!-- 분류 현황 바 -->
+        <div class="section">
+            <h3>분류 현황</h3>
+            {% if classify_total > 0 %}
+            <div class="classify-bar">
+                {% for cat, cnt in classify_stats.items() %}
+                {% if cat and cnt > 0 %}
+                <div class="seg {{ cat }}" style="width:{{ (cnt / classify_total * 100)|round(1) }}%"
+                     title="{{ cat }}: {{ cnt }}건 ({{ (cnt / classify_total * 100)|round(1) }}%)">
+                    {% if cnt / classify_total * 100 > 8 %}{{ cat }} {{ cnt }}{% endif %}
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            <div style="display:flex; gap:1.5rem; flex-wrap:wrap; font-size:0.85rem;">
+                {% for cat, cnt in classify_stats.items() %}
+                {% if cat %}
+                <span><span class="seg {{ cat }}" style="display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:middle;"></span> {{ cat }}: {{ "{:,}".format(cnt) }}건 ({{ "{:.1f}".format(cnt / classify_total * 100) }}%)</span>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="color:var(--text-light); font-size:0.9rem;">분류 데이터가 없습니다.</p>
+            {% endif %}
+        </div>
+
+        <!-- 전체 데이터 파일 목록 -->
+        <div class="section">
+            <h3>데이터 파일 전체 목록 <span style="font-weight:400;font-size:0.82rem;color:var(--text-light);margin-left:0.5rem">{{ raw_files|length }}개 파일</span></h3>
+            <div style="overflow-x:auto; max-height:400px; overflow-y:auto; border:1px solid var(--border); border-radius:8px;">
+                <table style="min-width:700px;">
+                    <thead style="position:sticky;top:0;background:#f8fafc;z-index:1"><tr>
+                        <th>상태</th>
+                        <th>파일명</th>
+                        <th>크기</th>
+                        <th class="amount">적용 건수</th>
+                        <th>기간</th>
+                        <th>유형</th>
+                        <th>업로드일</th>
+                        <th></th>
+                    </tr></thead>
+                    <tbody>
+                    {% for f in raw_files %}
+                    <tr id="file-row-{{ loop.index }}" style="{% if not f.applied %}background:#fff7ed{% endif %}">
+                        <td>
+                            {% if f.applied %}
+                            <span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.75rem;font-weight:600;background:#dcfce7;color:#166534;">적용됨</span>
+                            {% else %}
+                            <span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:4px;font-size:0.75rem;font-weight:600;background:#fee2e2;color:#991b1b;">미적용</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="file-icon">{% if f.applied %}📊{% else %}📁{% endif %}</span>{{ f.name }}</td>
+                        <td>{{ f.size }}</td>
+                        <td class="amount">{% if f.applied %}{{ "{:,}".format(f.count) }}{% else %}-{% endif %}</td>
+                        <td style="font-size:0.8rem;color:var(--text-light)">
+                            {% for fs in file_stats if fs.파일명 == f.name %}{{ fs.기간 }}{% endfor %}
+                        </td>
+                        <td>
+                            {% for fs in file_stats if fs.파일명 == f.name %}
+                            <span class="badge {{ fs.유형 }}">{{ fs.유형 }}</span>
+                            {% endfor %}
+                        </td>
+                        <td style="font-size:0.8rem;color:var(--text-light)">{{ f.modified }}</td>
+                        <td style="text-align:right;white-space:nowrap;">
+                            <div style="display:inline-flex;gap:4px;align-items:center;">
+                                <button class="btn-action open" onclick="openFile('{{ f.name }}')" title="파일 열기">📂</button>
+                                <button class="btn-action rename" onclick="renameFile('{{ f.name }}')" title="이름 변경">✏️</button>
+                                {% if f.applied %}
+                                <button class="btn-delete" onclick="confirmDelete('{{ f.name }}', {{ f.count }})">삭제</button>
+                                {% else %}
+                                <button class="btn-action retry" onclick="retryImport('{{ f.name }}')">재시도</button>
+                                <button class="btn-delete" onclick="confirmDeleteRaw('{{ f.name }}')">삭제</button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not raw_files %}
+                    <tr><td colspan="8" style="text-align:center;color:var(--text-light);padding:2rem;">업로드된 파일이 없습니다.</td></tr>
+                    {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 월별 데이터 현황 -->
+        <div class="section">
+            <h3>월별 데이터 현황</h3>
+            <table>
+                <thead><tr><th>월</th><th class="amount">건수</th><th class="amount">수입</th><th class="amount">지출</th><th class="amount">순이익</th></tr></thead>
+                <tbody>
+                {% for m in monthly_stats %}
+                <tr>
+                    <td><strong>{{ m.월 }}</strong></td>
+                    <td class="amount">{{ "{:,}".format(m.건수) }}</td>
+                    <td class="amount positive">{{ "{:,.0f}".format(m.수입) }}</td>
+                    <td class="amount negative">{{ "{:,.0f}".format(m.지출) }}</td>
+                    <td class="amount {% if m.수입 - m.지출 >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ "{:+,.0f}".format(m.수입 - m.지출) }}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% endif %}
+
+        <!-- 백업 & 변경 이력 -->
+        <div class="two-col">
+            <div class="section">
+                <h3>백업 관리
+                    <button class="btn-add" style="float:right;font-size:0.8rem;padding:0.35rem 0.8rem" onclick="createBackup()">+ 백업 생성</button>
+                </h3>
+                <div id="backupList" style="margin-top:0.5rem">
+                    <p style="color:var(--text-light);font-size:0.85rem">불러오는 중...</p>
+                </div>
+            </div>
+            <div class="section">
+                <h3>변경 이력</h3>
+                <div id="logList" style="max-height:400px;overflow-y:auto;margin-top:0.5rem">
+                    <p style="color:var(--text-light);font-size:0.85rem">불러오는 중...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 삭제 확인 모달 -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal">
+            <h4>데이터 삭제 확인</h4>
+            <p id="deleteMsg"></p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal()">취소</button>
+                <button class="btn-confirm-delete" id="btnConfirmDelete">삭제</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ── 파일 업로드 (드래그 앤 드롭 + 클릭) ──
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileList = document.getElementById('fileList');
+    const btnUpload = document.getElementById('btnUpload');
+    const uploadForm = document.getElementById('uploadForm');
+    let selectedFiles = [];
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        addFiles(e.dataTransfer.files);
+    });
+    fileInput.addEventListener('change', () => addFiles(fileInput.files));
+
+    function addFiles(files) {
+        for (const f of files) {
+            if (!selectedFiles.some(sf => sf.name === f.name && sf.size === f.size)) {
+                selectedFiles.push(f);
+            }
+        }
+        renderFileList();
+    }
+
+    function removeFile(idx) {
+        selectedFiles.splice(idx, 1);
+        renderFileList();
+    }
+
+    function renderFileList() {
+        fileList.innerHTML = selectedFiles.map((f, i) =>
+            `<div class="file-item">
+                <span>📄 ${f.name} <span style="color:var(--text-light); font-size:0.8rem">(${(f.size/1024).toFixed(0)} KB)</span></span>
+                <button class="remove-file" onclick="removeFile(${i})">✕</button>
+            </div>`
+        ).join('');
+        btnUpload.disabled = selectedFiles.length === 0;
+    }
+
+    uploadForm.addEventListener('submit', e => {
+        if (selectedFiles.length === 0) { e.preventDefault(); return; }
+        // DataTransfer로 파일 목록 설정
+        const dt = new DataTransfer();
+        selectedFiles.forEach(f => dt.items.add(f));
+        fileInput.files = dt.files;
+        btnUpload.disabled = true;
+        btnUpload.textContent = '업로드 중...';
+    });
+
+    // ── 파일 삭제 ──
+    let deleteTarget = null;
+
+    async function retryImport(filename) {
+        if (!confirm(`"${filename}" 파일을 다시 가져오시겠습니까?`)) return;
+        try {
+            const res = await fetch('/api/retry_import', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filename: filename}),
+            });
+            const data = await res.json();
+            if (data.ok) {
+                alert(`가져오기 완료: 신규 ${data.new}건 추가`);
+                location.reload();
+            } else {
+                alert('가져오기 실패: ' + data.error);
+            }
+        } catch(e) {
+            alert('오류가 발생했습니다: ' + e.message);
+        }
+    }
+
+    // 미적용 파일 삭제
+    async function confirmDeleteRaw(filename) {
+        if (!confirm(`"${filename}" 원본 파일을 삭제하시겠습니까?\n(마스터 데이터에 적용되지 않은 파일입니다)`)) return;
+        try {
+            const res = await fetch('/api/delete_raw_file', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filename}),
+            });
+            const data = await res.json();
+            if (data.ok) { location.reload(); }
+            else { alert('삭제 실패: ' + data.error); }
+        } catch(e) { alert('오류: ' + e.message); }
+    }
+
+    // 파일 열기 (Finder)
+    async function openFile(filename) {
+        try {
+            const res = await fetch('/api/open_file', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filename}),
+            });
+            const data = await res.json();
+            if (!data.ok) alert('열기 실패: ' + data.error);
+        } catch(e) { alert('오류: ' + e.message); }
+    }
+
+    // 파일명 변경
+    async function renameFile(oldName) {
+        const ext = oldName.substring(oldName.lastIndexOf('.'));
+        const baseName = oldName.substring(0, oldName.lastIndexOf('.'));
+        const newBase = prompt('새 파일명을 입력하세요 (확장자 제외):', baseName);
+        if (!newBase || newBase.trim() === '' || newBase.trim() === baseName) return;
+        const newName = newBase.trim() + ext;
+        if (!confirm(`파일명을 변경합니다:\n"${oldName}" → "${newName}"`)) return;
+        try {
+            const res = await fetch('/api/rename_file', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({old_name: oldName, new_name: newName}),
+            });
+            const data = await res.json();
+            if (data.ok) { location.reload(); }
+            else { alert('변경 실패: ' + data.error); }
+        } catch(e) { alert('오류: ' + e.message); }
+    }
+
+    function confirmDelete(filename, count) {
+        deleteTarget = filename;
+        document.getElementById('deleteMsg').innerHTML =
+            `<strong>${filename}</strong> 파일의 거래 데이터 <strong>${count.toLocaleString()}건</strong>을 삭제합니다.<br>이 작업은 되돌릴 수 없습니다.`;
+        document.getElementById('deleteModal').classList.add('show');
+    }
+
+    function closeModal() {
+        document.getElementById('deleteModal').classList.remove('show');
+        deleteTarget = null;
+    }
+
+    document.getElementById('btnConfirmDelete').addEventListener('click', async () => {
+        if (!deleteTarget) return;
+        const btn = document.getElementById('btnConfirmDelete');
+        btn.disabled = true;
+        btn.textContent = '삭제 중...';
+
+        try {
+            const res = await fetch('/api/delete_file', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filename: deleteTarget}),
+            });
+            const data = await res.json();
+            if (data.ok) {
+                location.reload();
+            } else {
+                alert('삭제 실패: ' + data.error);
+                closeModal();
+                btn.disabled = false;
+                btn.textContent = '삭제';
+            }
+        } catch (err) {
+            alert('오류가 발생했습니다: ' + err.message);
+            closeModal();
+            btn.disabled = false;
+            btn.textContent = '삭제';
+        }
+    });
+
+    // 모달 외부 클릭 시 닫기
+    document.getElementById('deleteModal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeModal();
+    });
+
+    // ── 자체 계좌 관리 ──
+    async function addAccount() {
+        const name = document.getElementById('accName').value.trim();
+        const number = document.getElementById('accNumber').value.trim();
+        if (!name || !number) { alert('계좌명과 계좌번호를 모두 입력해주세요.'); return; }
+        try {
+            const res = await fetch('/api/accounts/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, number}),
+            });
+            const data = await res.json();
+            if (data.ok) {
+                location.reload();
+            } else {
+                alert(data.error);
+            }
+        } catch (err) { alert('오류: ' + err.message); }
+    }
+
+    async function deleteAccount(number) {
+        if (!confirm('이 계좌를 목록에서 삭제하시겠습니까?')) return;
+        try {
+            const res = await fetch('/api/accounts/delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({number}),
+            });
+            const data = await res.json();
+            if (data.ok) {
+                location.reload();
+            } else {
+                alert(data.error);
+            }
+        } catch (err) { alert('오류: ' + err.message); }
+    }
+
+    // ── 자체이체 키워드 관리 ──
+    async function addKeyword() {
+        const keyword = document.getElementById('kwInput').value.trim();
+        if (!keyword) { alert('키워드를 입력해주세요.'); return; }
+        try {
+            const res = await fetch('/api/keywords/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({keyword}),
+            });
+            const data = await res.json();
+            if (data.ok) {
+                location.reload();
+            } else {
+                alert(data.error);
+            }
+        } catch (err) { alert('오류: ' + err.message); }
+    }
+
+    async function deleteKeyword(keyword) {
+        if (!confirm(`"${keyword}" 키워드를 삭제하시겠습니까?`)) return;
+        try {
+            const res = await fetch('/api/keywords/delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({keyword}),
+            });
+            const data = await res.json();
+            if (data.ok) {
+                location.reload();
+            } else {
+                alert(data.error);
+            }
+        } catch (err) { alert('오류: ' + err.message); }
+    }
+    // ── 인력 관리 ──
+    let allPeople = [];
+    let peopleFilter = '전체';
+
+    async function loadPeople() {
+        try {
+            const res = await fetch('/api/people');
+            const data = await res.json();
+            allPeople = data.people || [];
+            document.getElementById('cnt-all').textContent = allPeople.length;
+            document.getElementById('cnt-guide').textContent = allPeople.filter(p=>p.role==='가이드').length;
+            document.getElementById('cnt-driver').textContent = allPeople.filter(p=>p.role==='기사').length;
+            document.getElementById('cnt-staff').textContent = allPeople.filter(p=>p.role==='보조').length;
+            renderPeople();
+        } catch(e) { document.getElementById('peopleList').innerHTML = '<p style="color:var(--danger)">로드 실패</p>'; }
+    }
+
+    function filterPeople(role, btn) {
+        peopleFilter = role;
+        document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        renderPeople();
+    }
+
+    function renderPeople() {
+        const list = document.getElementById('peopleList');
+        let filtered = peopleFilter === '전체' ? allPeople : allPeople.filter(p => p.role === peopleFilter);
+        if (!filtered.length) {
+            list.innerHTML = '<p style="color:var(--text-light);font-size:0.85rem;padding:0.5rem">등록된 인력이 없습니다.</p>';
+            return;
+        }
+        list.innerHTML = filtered.map(p => `<div class="people-row">
+            <span class="p-name">${p.name}</span>
+            <span class="role-badge ${p.role}">${p.role}</span>
+            <span class="p-status">${p.status || ''}</span>
+            <span class="p-actions">
+                <select onchange="updateRole('${p.name}',this.value)">
+                    <option value="가이드" ${p.role==='가이드'?'selected':''}>가이드</option>
+                    <option value="기사" ${p.role==='기사'?'selected':''}>기사</option>
+                    <option value="보조" ${p.role==='보조'?'selected':''}>보조</option>
+                </select>
+                <button class="btn-delete" onclick="deletePerson('${p.name}')">삭제</button>
+            </span>
+        </div>`).join('');
+    }
+
+    async function addPerson() {
+        const name = document.getElementById('pName').value.trim();
+        const role = document.getElementById('pRole').value;
+        if (!name) { alert('이름을 입력해주세요.'); return; }
+        try {
+            const res = await fetch('/api/people/add', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({name, role})
+            });
+            const data = await res.json();
+            if (data.ok) { document.getElementById('pName').value = ''; loadPeople(); loadLogs(); }
+            else alert(data.error);
+        } catch(e) { alert('오류: ' + e.message); }
+    }
+
+    async function deletePerson(name) {
+        if (!confirm(`"${name}"을(를) 삭제하시겠습니까?`)) return;
+        try {
+            const res = await fetch('/api/people/delete', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({name})
+            });
+            const data = await res.json();
+            if (data.ok) { loadPeople(); loadLogs(); }
+            else alert(data.error);
+        } catch(e) { alert('오류: ' + e.message); }
+    }
+
+    async function updateRole(name, role) {
+        try {
+            const res = await fetch('/api/people/update', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({name, role})
+            });
+            const data = await res.json();
+            if (data.ok) { loadPeople(); loadLogs(); }
+            else alert(data.error);
+        } catch(e) { alert('오류: ' + e.message); }
+    }
+
+    loadPeople();
+
+    // ── 백업 관리 ──
+    async function loadBackups() {
+        try {
+            const res = await fetch('/api/backups');
+            const data = await res.json();
+            const list = document.getElementById('backupList');
+            const backups = data.backups || [];
+            if (!backups.length) {
+                list.innerHTML = '<p style="color:var(--text-light);font-size:0.85rem">저장된 백업이 없습니다.</p>';
+                return;
+            }
+            list.innerHTML = '<table style="width:100%"><thead><tr><th>파일명</th><th>크기</th><th>날짜</th><th></th></tr></thead><tbody>' +
+                backups.map(b => `<tr>
+                    <td style="font-size:0.82rem;word-break:break-all">${b.name}</td>
+                    <td style="font-size:0.82rem;white-space:nowrap">${b.size}</td>
+                    <td style="font-size:0.78rem;color:var(--text-light);white-space:nowrap">${b.timestamp}</td>
+                    <td style="text-align:right;white-space:nowrap">
+                        <button class="btn-add" style="font-size:0.72rem;padding:0.2rem 0.5rem;background:var(--success)" onclick="restoreBackup('${b.name}')">복원</button>
+                        <button class="btn-delete" style="font-size:0.72rem;padding:0.2rem 0.5rem" onclick="deleteBackup('${b.name}')">삭제</button>
+                    </td>
+                </tr>`).join('') + '</tbody></table>';
+        } catch(e) { document.getElementById('backupList').innerHTML = '<p style="color:var(--danger);font-size:0.85rem">로드 실패</p>'; }
+    }
+
+    async function createBackup() {
+        const label = prompt('백업 메모 (선택사항):') || '';
+        try {
+            const res = await fetch('/api/backup', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({label})
+            });
+            const data = await res.json();
+            if (data.ok) {
+                alert('백업이 생성되었습니다: ' + data.backup.name);
+                loadBackups();
+                loadLogs();
+            } else alert(data.error);
+        } catch(e) { alert('오류: ' + e.message); }
+    }
+
+    async function restoreBackup(name) {
+        if (!confirm(`"${name}" 백업으로 복원하시겠습니까?\n현재 데이터는 자동 백업됩니다.`)) return;
+        try {
+            const res = await fetch('/api/backup/restore', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({name})
+            });
+            const data = await res.json();
+            if (data.ok) {
+                alert('복원 완료. 페이지를 새로고침합니다.');
+                location.reload();
+            } else alert(data.error);
+        } catch(e) { alert('오류: ' + e.message); }
+    }
+
+    async function deleteBackup(name) {
+        if (!confirm(`"${name}" 백업을 삭제하시겠습니까?`)) return;
+        try {
+            const res = await fetch('/api/backup/delete', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({name})
+            });
+            const data = await res.json();
+            if (data.ok) { loadBackups(); loadLogs(); }
+            else alert(data.error);
+        } catch(e) { alert('오류: ' + e.message); }
+    }
+
+    // ── 변경 이력 ──
+    const _LOG_ICONS = {
+        '분류 변경': '🏷️', '메모 수정': '📝', '파일 업로드': '📤',
+        '파일 삭제': '🗑️', '백업 생성': '💾', '백업 복원': '🔄', '백업 삭제': '❌',
+        '일괄 분류': '📦', '되돌리기': '↩️',
+    };
+    async function loadLogs() {
+        try {
+            const res = await fetch('/api/logs?limit=100');
+            const data = await res.json();
+            const list = document.getElementById('logList');
+            const logs = data.logs || [];
+            if (!logs.length) {
+                list.innerHTML = '<p style="color:var(--text-light);font-size:0.85rem">변경 이력이 없습니다.</p>';
+                return;
+            }
+            list.innerHTML = logs.map(l => {
+                const icon = _LOG_ICONS[l.action] || '📋';
+                const countStr = l.count > 0 ? ` <span style="color:var(--primary);font-weight:600">${l.count}건</span>` : '';
+                const undoBtn = l.undo ? `<button onclick="undoLog('${l.id}')" style="flex-shrink:0;background:#fef3c7;color:#b45309;border:1px solid #fcd34d;border-radius:4px;padding:0.15rem 0.5rem;font-size:0.72rem;cursor:pointer;white-space:nowrap" title="이 변경을 되돌립니다">↩️ 되돌리기</button>` : '';
+                return `<div style="display:flex;gap:0.6rem;padding:0.45rem 0;border-bottom:1px solid #f1f5f9;font-size:0.82rem;align-items:center">
+                    <span style="flex-shrink:0">${icon}</span>
+                    <div style="flex:1;min-width:0">
+                        <span style="font-weight:600">${l.action}</span>${countStr}
+                        <div style="color:var(--text-light);font-size:0.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.detail || ''}</div>
+                    </div>
+                    ${undoBtn}
+                    <span style="flex-shrink:0;color:var(--text-light);font-size:0.72rem;white-space:nowrap">${l.timestamp.slice(5)}</span>
+                </div>`;
+            }).join('');
+        } catch(e) { document.getElementById('logList').innerHTML = '<p style="color:var(--danger);font-size:0.85rem">로드 실패</p>'; }
+    }
+
+    async function undoLog(logId) {
+        if (!confirm('이 변경을 되돌리시겠습니까? 해당 거래들의 분류/메모가 변경 전 상태로 복원됩니다.')) return;
+        try {
+            const res = await fetch('/api/log/undo', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({id: logId})
+            });
+            const data = await res.json();
+            if (data.ok) {
+                alert(`${data.restored}건이 복원되었습니다.`);
+                loadLogs();
+                loadStatus();
+            } else {
+                alert(data.error || '되돌리기 실패');
+            }
+        } catch(e) { alert('오류: ' + e.message); }
+    }
+
+    // 초기 로드
+    loadBackups();
+    loadLogs();
+    </script>
+</body>
+</html>

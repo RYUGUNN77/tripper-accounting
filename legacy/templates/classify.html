@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>일괄 분류 — 회계 분석</title>
+    <style>
+        :root {
+            --primary: #2563eb; --primary-dark: #1d4ed8;
+            --success: #16a34a; --danger: #dc2626; --warning: #d97706;
+            --bg: #f1f5f9; --card: #ffffff; --text: #1e293b;
+            --text-light: #64748b; --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+        /* nav CSS removed — using sidebar */
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+
+        /* 헤더 바 */
+        .header-bar {
+            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+            background: var(--card); padding: 1rem 1.5rem; border-radius: 12px;
+            box-shadow: var(--shadow); margin-bottom: 1rem;
+        }
+        .header-bar h2 { font-size: 1.1rem; font-weight: 700; }
+        .header-stats { display: flex; gap: 1.5rem; }
+        .header-stats .stat { text-align: center; }
+        .header-stats .stat-val { font-size: 1.3rem; font-weight: 700; color: var(--primary); }
+        .header-stats .stat-label { font-size: 0.75rem; color: var(--text-light); }
+        .header-actions { display: flex; gap: 0.5rem; align-items: center; }
+        .btn { padding: 0.5rem 1rem; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
+        .btn-outline { background: white; border: 2px solid var(--border); color: var(--text); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #15803d; }
+        .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.78rem; }
+
+        /* 두 컬럼 레이아웃 */
+        .layout { display: grid; grid-template-columns: 1fr 340px; gap: 1rem; align-items: start; }
+        @media (max-width: 1024px) { .layout { grid-template-columns: 1fr; } }
+
+        /* 그룹 리스트 */
+        .group-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .group-card {
+            background: var(--card); border-radius: 10px; box-shadow: var(--shadow);
+            border: 2px solid transparent; transition: all 0.15s; overflow: hidden;
+        }
+        .group-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .group-card.selected { border-color: var(--primary); background: #f8faff; }
+        .group-card.classified { border-color: var(--success); opacity: 0.6; }
+        .group-header {
+            display: flex; align-items: center; gap: 0.8rem; padding: 0.8rem 1rem;
+            cursor: pointer; user-select: none;
+        }
+        .group-check { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; flex-shrink: 0; }
+        .group-info { flex: 1; min-width: 0; }
+        .group-desc {
+            font-weight: 600; font-size: 0.9rem; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis;
+        }
+        .group-meta {
+            display: flex; gap: 1rem; margin-top: 0.2rem; font-size: 0.78rem; color: var(--text-light);
+        }
+        .group-meta .amt-in { color: var(--success); font-weight: 600; }
+        .group-meta .amt-out { color: var(--danger); font-weight: 600; }
+        .group-count {
+            background: #eff6ff; color: var(--primary); padding: 0.2rem 0.6rem;
+            border-radius: 6px; font-size: 0.8rem; font-weight: 700; flex-shrink: 0;
+        }
+        .group-assigned {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 0.15rem 0.55rem; border-radius: 4px;
+            font-size: 0.75rem; font-weight: 600; flex-shrink: 0;
+        }
+
+        /* 펼침 영역 */
+        .group-detail { display: none; padding: 0 1rem 0.8rem; border-top: 1px solid var(--border); max-height: 400px; overflow-y: auto; }
+        .group-card.expanded .group-detail { display: block; }
+        .load-all-btn:hover { background: #eff6ff; border-radius: 6px; }
+        .sample-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+        .sample-table th { font-size: 0.72rem; color: var(--text-light); padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--border); text-align: left; }
+        .sample-table td { font-size: 0.82rem; padding: 0.3rem 0.5rem; border-bottom: 1px solid #f1f5f9; }
+        .sample-table .amount { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .toggle-btn {
+            background: none; border: none; cursor: pointer; font-size: 0.75rem;
+            color: var(--text-light); padding: 0.2rem 0.5rem; flex-shrink: 0;
+        }
+        .toggle-btn:hover { color: var(--primary); }
+
+        /* 우측 분류 패널 */
+        .classify-panel {
+            background: var(--card); border-radius: 12px; box-shadow: var(--shadow);
+            padding: 1.2rem; position: sticky; top: 1rem;
+        }
+        .panel-title {
+            font-size: 0.95rem; font-weight: 700; margin-bottom: 0.8rem;
+            padding-bottom: 0.5rem; border-bottom: 2px solid var(--border);
+        }
+        .selected-info {
+            background: #eff6ff; padding: 0.6rem 0.8rem; border-radius: 8px;
+            margin-bottom: 1rem; font-size: 0.85rem;
+        }
+        .selected-info strong { color: var(--primary); }
+
+        /* 대분류 그리드 */
+        .major-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-bottom: 1rem; }
+        .major-chip {
+            padding: 0.6rem; border-radius: 8px; cursor: pointer; text-align: center;
+            font-weight: 600; font-size: 0.85rem; border: 2px solid transparent;
+            transition: all 0.15s;
+        }
+        .major-chip:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .major-chip.active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
+
+        /* 중분류 칩 */
+        .minor-section { margin-bottom: 1rem; }
+        .minor-label { font-size: 0.8rem; font-weight: 600; color: var(--text-light); margin-bottom: 0.4rem; }
+        .minor-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+        .minor-chip {
+            padding: 0.3rem 0.7rem; border-radius: 6px; cursor: pointer;
+            font-size: 0.82rem; font-weight: 500; border: 2px solid transparent;
+            transition: all 0.15s;
+        }
+        .minor-chip:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        .minor-chip.active { border-color: var(--primary); }
+
+        .apply-bar {
+            display: flex; gap: 0.5rem; margin-top: 1rem;
+            padding-top: 0.8rem; border-top: 2px solid var(--border);
+        }
+        .apply-bar .btn { flex: 1; }
+
+        /* 검색/필터 */
+        .filter-row {
+            display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.8rem;
+        }
+        .filter-row input {
+            flex: 1; padding: 0.45rem 0.8rem; border: 2px solid var(--border);
+            border-radius: 8px; font-size: 0.85rem; outline: none;
+        }
+        .filter-row input:focus { border-color: var(--primary); }
+        .filter-row select {
+            padding: 0.45rem 0.6rem; border: 2px solid var(--border);
+            border-radius: 8px; font-size: 0.85rem; background: white;
+        }
+
+        .badge { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+        .empty { text-align: center; padding: 3rem; color: var(--text-light); }
+        .loading { text-align: center; padding: 3rem; color: var(--text-light); }
+
+        .toast {
+            position: fixed; bottom: 20px; right: 20px; padding: 0.8rem 1.2rem;
+            background: #065f46; color: white; border-radius: 10px; font-size: 0.9rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 999; opacity: 0;
+            transition: opacity 0.3s; pointer-events: none;
+            display: flex; align-items: center; gap: 0.8rem; max-width: 420px;
+        }
+        .toast.show { opacity: 1; pointer-events: auto; }
+        .toast .undo-btn {
+            background: rgba(255,255,255,0.2); color: #fef3c7; border: 1px solid rgba(255,255,255,0.35);
+            border-radius: 6px; padding: 0.25rem 0.7rem; font-size: 0.82rem; font-weight: 600;
+            cursor: pointer; white-space: nowrap; transition: background 0.15s;
+        }
+        .toast .undo-btn:hover { background: rgba(255,255,255,0.35); }
+        .toast .toast-msg { flex: 1; }
+        .toast .toast-timer {
+            position: absolute; bottom: 0; left: 0; height: 3px; background: rgba(255,255,255,0.4);
+            border-radius: 0 0 10px 10px; animation: toast-shrink linear forwards;
+        }
+        @keyframes toast-shrink { from { width: 100%; } to { width: 0%; } }
+
+        /* 전체선택 바 */
+        .select-all-bar {
+            display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0;
+            font-size: 0.85rem; color: var(--text-light);
+        }
+        .select-all-bar label { cursor: pointer; display: flex; align-items: center; gap: 0.4rem; }
+
+        /* 키워드 등록 안내 */
+        .keyword-hint {
+            margin-top: 0.8rem; padding: 0.6rem 0.8rem; background: #fffbeb;
+            border-radius: 8px; font-size: 0.8rem; color: #92400e;
+            border: 1px solid #fde68a;
+        }
+        .keyword-hint label { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+{% include '_sidebar.html' %}
+
+    <div class="container">
+        {% if not has_data %}
+        <div class="empty"><p>아직 데이터가 없습니다. <a href="/data">파일을 업로드</a>해주세요.</p></div>
+        {% else %}
+
+        <div class="header-bar">
+            <h2>미분류 일괄 분류</h2>
+            <div class="header-stats">
+                <div class="stat">
+                    <div class="stat-val" id="statTotal">-</div>
+                    <div class="stat-label">미분류 건수</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-val" id="statGroups">-</div>
+                    <div class="stat-label">그룹 수</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-val" id="statSelected">0</div>
+                    <div class="stat-label">선택됨</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="layout">
+            <!-- 좌측: 그룹 리스트 -->
+            <div>
+                <div class="filter-row">
+                    <input type="text" id="searchInput" placeholder="적요 / 거래처 검색...">
+                    <select id="sortSelect">
+                        <option value="count">건수순</option>
+                        <option value="amount">금액순</option>
+                        <option value="name">이름순</option>
+                    </select>
+                </div>
+                <div class="select-all-bar">
+                    <label><input type="checkbox" id="selectAll" class="group-check"> 전체 선택</label>
+                    <span id="filteredCount" style="margin-left:auto"></span>
+                </div>
+                <div class="group-list" id="groupList">
+                    <div class="loading">불러오는 중...</div>
+                </div>
+            </div>
+
+            <!-- 우측: 분류 패널 -->
+            <div class="classify-panel" id="classifyPanel">
+                <div class="panel-title">분류 적용</div>
+                <div class="selected-info" id="selectedInfo">
+                    그룹을 선택하면 분류를 적용할 수 있습니다.
+                </div>
+
+                <div class="minor-label">대분류 선택</div>
+                <div class="major-grid" id="majorGrid"></div>
+
+                <div class="minor-section">
+                    <div class="minor-label">중분류 선택</div>
+                    <div class="minor-chips" id="minorChips">
+                        <span style="color:var(--text-light);font-size:0.82rem">대분류를 먼저 선택하세요</span>
+                    </div>
+                </div>
+
+                <div class="keyword-hint">
+                    <label>
+                        <input type="checkbox" id="addKeyword" {% if settings.classification.auto_register_keyword %}checked{% endif %}>
+                        분류 규칙(키워드)에도 자동 등록
+                    </label>
+                    <div style="margin-top:0.3rem;font-size:0.75rem;color:#78716c">
+                        체크 시 같은 적요가 다음 업로드부터 자동 분류됩니다
+                    </div>
+                </div>
+
+                <div class="apply-bar">
+                    <button class="btn btn-primary" id="btnApply" disabled onclick="applyClassification()">선택 그룹에 적용</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="toast" class="toast"></div>
+
+        <script>
+        // ===== State =====
+        let allGroups = [];
+        let filteredGroups = [];
+        let catTree = {};
+        let catColors = {};
+        let selectedMajor = '';
+        let selectedMinor = '';
+        let selectedGroupDescs = new Set(); // 선택된 그룹 적요 집합
+        let classifiedDescs = new Set(); // 이미 분류 완료된 그룹
+
+        const $ = id => document.getElementById(id);
+
+        // ===== Fetch data =====
+        function fetchGroups() {
+            fetch('/api/unclassified_groups').then(r => r.json()).then(data => {
+                allGroups = data.groups || [];
+                catTree = data.categories || {};
+                catColors = data.colors || {};
+
+                $('statTotal').textContent = (data.total || 0).toLocaleString();
+                $('statGroups').textContent = (data.group_count || 0).toLocaleString();
+
+                renderMajorGrid();
+                applyFilter();
+            }).catch(() => {
+                $('groupList').innerHTML = '<div class="empty">데이터 로드 실패</div>';
+            });
+        }
+
+        // ===== Filter & Sort =====
+        function applyFilter() {
+            const q = $('searchInput').value.trim().toLowerCase();
+            const sort = $('sortSelect').value;
+
+            filteredGroups = allGroups.filter(g => {
+                if (classifiedDescs.has(g.적요)) return false;
+                if (!q) return true;
+                return g.적요.toLowerCase().includes(q) || (g.거래처 || '').toLowerCase().includes(q);
+            });
+
+            // 정렬
+            if (sort === 'count') filteredGroups.sort((a,b) => b.건수 - a.건수);
+            else if (sort === 'amount') filteredGroups.sort((a,b) => (b.총입금+b.총출금) - (a.총입금+a.총출금));
+            else if (sort === 'name') filteredGroups.sort((a,b) => a.적요.localeCompare(b.적요, 'ko'));
+
+            $('filteredCount').textContent = `${filteredGroups.length}개 그룹`;
+            renderGroups();
+        }
+
+        let searchTimer;
+        $('searchInput').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(applyFilter, 200); });
+        $('sortSelect').addEventListener('change', applyFilter);
+        $('selectAll').addEventListener('change', () => {
+            const checked = $('selectAll').checked;
+            if (checked) {
+                filteredGroups.forEach(g => selectedGroupDescs.add(g.적요));
+            } else {
+                selectedGroupDescs.clear();
+            }
+            renderGroups();
+            updateSelectedInfo();
+        });
+
+        // ===== Render groups =====
+        function renderGroups() {
+            if (!filteredGroups.length) {
+                $('groupList').innerHTML = '<div class="empty">미분류 항목이 없습니다!</div>';
+                return;
+            }
+
+            const fmt = n => n ? n.toLocaleString() : '0';
+
+            $('groupList').innerHTML = filteredGroups.map((g, i) => {
+                const isSelected = selectedGroupDescs.has(g.적요);
+                const cls = isSelected ? ' selected' : '';
+
+                let amtHtml = '';
+                if (g.총입금 > 0) amtHtml += `<span class="amt-in">+${fmt(g.총입금)}</span>`;
+                if (g.총출금 > 0) amtHtml += `<span class="amt-out">-${fmt(g.총출금)}</span>`;
+
+                let samplesHtml = '';
+                if (g.samples && g.samples.length) {
+                    samplesHtml = `<div id="sample-wrap-${i}"><table class="sample-table">
+                        <thead><tr><th>날짜</th><th>거래처</th><th style="text-align:right">입금</th><th style="text-align:right">출금</th></tr></thead>
+                        <tbody>${g.samples.map(s => `<tr>
+                            <td>${s.날짜}</td>
+                            <td>${s.거래처}</td>
+                            <td class="amount" style="color:var(--success)">${s.입금 > 0 ? fmt(s.입금) : ''}</td>
+                            <td class="amount" style="color:var(--danger)">${s.출금 > 0 ? fmt(s.출금) : ''}</td>
+                        </tr>`).join('')}</tbody>
+                    </table>`;
+                    if (g.건수 > 5) {
+                        samplesHtml += `<div class="load-all-btn" onclick="event.stopPropagation(); loadAllRows(${i}, '${esc(g.적요)}')" style="font-size:0.82rem;color:var(--primary);padding:0.4rem 0.5rem;cursor:pointer;font-weight:600;text-align:center;border-top:1px dashed var(--border);margin-top:0.3rem">... 외 ${g.건수 - 5}건 전체 보기</div>`;
+                    }
+                    samplesHtml += '</div>';
+                }
+
+                return `<div class="group-card${cls}" id="gc-${i}">
+                    <div class="group-header">
+                        <input type="checkbox" class="group-check" ${isSelected ? 'checked' : ''}
+                            onclick="event.stopPropagation(); toggleGroup('${esc(g.적요)}')">
+                        <div class="group-info" onclick="toggleGroup('${esc(g.적요)}')">
+                            <div class="group-desc" title="${esc(g.적요)}">${g.적요}</div>
+                            <div class="group-meta">
+                                ${g.거래처 ? `<span>${g.거래처}</span>` : ''}
+                                ${amtHtml}
+                            </div>
+                        </div>
+                        <span class="group-count">${g.건수}건</span>
+                        <button class="toggle-btn" onclick="event.stopPropagation(); toggleExpand(${i})" title="상세보기">▼</button>
+                    </div>
+                    <div class="group-detail">${samplesHtml}</div>
+                </div>`;
+            }).join('');
+        }
+
+        function esc(s) { return (s||'').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+        function toggleGroup(desc) {
+            if (selectedGroupDescs.has(desc)) {
+                selectedGroupDescs.delete(desc);
+            } else {
+                selectedGroupDescs.add(desc);
+            }
+            renderGroups();
+            updateSelectedInfo();
+        }
+
+        function toggleExpand(idx) {
+            const card = $('gc-' + idx);
+            if (card) card.classList.toggle('expanded');
+        }
+
+        // ===== Selected info =====
+        function updateSelectedInfo() {
+            const count = selectedGroupDescs.size;
+            $('statSelected').textContent = count;
+
+            if (count === 0) {
+                $('selectedInfo').innerHTML = '그룹을 선택하면 분류를 적용할 수 있습니다.';
+                $('btnApply').disabled = true;
+                return;
+            }
+
+            let totalTx = 0;
+            allGroups.forEach(g => {
+                if (selectedGroupDescs.has(g.적요)) totalTx += g.건수;
+            });
+
+            $('selectedInfo').innerHTML = `<strong>${count}</strong>개 그룹, 총 <strong>${totalTx.toLocaleString()}</strong>건 선택됨`;
+            updateApplyButton();
+        }
+
+        function updateApplyButton() {
+            $('btnApply').disabled = !(selectedGroupDescs.size > 0 && selectedMajor);
+        }
+
+        // ===== Major/Minor picker =====
+        function getColor(major, minor) {
+            if (minor) {
+                const key = major + '_' + minor;
+                if (catColors[key]) return catColors[key];
+            }
+            return catColors[major] || {bg: '#f1f5f9', fg: '#475569'};
+        }
+
+        function renderMajorGrid() {
+            const majors = [
+                {name:'고정비', desc:'매월 고정'},
+                {name:'변동비', desc:'변동 지출'},
+                {name:'수입', desc:'입금/매출'},
+                {name:'자체이체', desc:'계좌이체'},
+                {name:'카드대금', desc:'카드결제'},
+                {name:'가수금', desc:'임시입금'},
+                {name:'가지급금', desc:'임시지출'},
+                {name:'미분류', desc:'분류없음'},
+            ];
+            $('majorGrid').innerHTML = majors.map(m => {
+                const c = getColor(m.name, '');
+                const cls = m.name === selectedMajor ? ' active' : '';
+                return `<div class="major-chip${cls}" style="background:${c.bg};color:${c.fg}"
+                    onclick="selectMajor('${m.name}')">
+                    ${m.name}<br><span style="font-size:0.7rem;font-weight:400;opacity:0.7">${m.desc}</span>
+                </div>`;
+            }).join('');
+        }
+
+        function selectMajor(major) {
+            selectedMajor = major;
+            selectedMinor = '';
+            renderMajorGrid();
+            renderMinorChips(major);
+            updateApplyButton();
+        }
+
+        function renderMinorChips(major) {
+            const minors = catTree[major] || [];
+            if (!minors.length) {
+                $('minorChips').innerHTML = '<span style="color:var(--text-light);font-size:0.82rem">등록된 중분류가 없습니다</span>';
+                return;
+            }
+            $('minorChips').innerHTML = minors.map(m => {
+                const c = getColor(major, m);
+                const cls = m === selectedMinor ? ' active' : '';
+                return `<div class="minor-chip${cls}" style="background:${c.bg};color:${c.fg}"
+                    onclick="selectMinor('${esc(m)}')">${m}</div>`;
+            }).join('');
+        }
+
+        function selectMinor(minor) {
+            selectedMinor = minor;
+            renderMinorChips(selectedMajor);
+        }
+
+        // ===== Apply classification =====
+        async function applyClassification() {
+            if (!selectedMajor || selectedGroupDescs.size === 0) return;
+
+            const btn = $('btnApply');
+            btn.disabled = true;
+            btn.textContent = '적용 중...';
+
+            const items = [];
+            for (const desc of selectedGroupDescs) {
+                items.push({
+                    '적요': desc,
+                    '대분류': selectedMajor,
+                    '중분류': selectedMinor,
+                });
+            }
+
+            try {
+                const res = await fetch('/api/batch_classify', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({items}),
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    // 키워드 자동 등록
+                    if ($('addKeyword').checked && selectedMinor) {
+                        for (const desc of selectedGroupDescs) {
+                            if (desc && desc !== '(적요없음)') {
+                                await addKeywordSilent(selectedMajor, selectedMinor, desc);
+                            }
+                        }
+                    }
+
+                    showToast(`${data.groups}개 그룹, ${data.changed}건 분류 완료`, false, data.log_id);
+
+                    // 분류 완료 표시 후 새로고침
+                    for (const desc of selectedGroupDescs) {
+                        classifiedDescs.add(desc);
+                    }
+                    selectedGroupDescs.clear();
+                    updateSelectedInfo();
+                    // 데이터 재로드
+                    fetchGroups();
+                } else {
+                    showToast(data.error || '적용 실패', true);
+                }
+            } catch(e) {
+                showToast('오류: ' + e.message, true);
+            } finally {
+                btn.textContent = '선택 그룹에 적용';
+                updateApplyButton();
+            }
+        }
+
+        async function addKeywordSilent(major, minor, keyword) {
+            try {
+                await fetch('/api/categories/add_keyword', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({major, minor, keyword}),
+                });
+            } catch(e) { /* silent */ }
+        }
+
+        // ===== 전체 내역 로드 =====
+        async function loadAllRows(idx, desc) {
+            const wrap = $('sample-wrap-' + idx);
+            if (!wrap) return;
+
+            // 로딩 표시
+            const loadBtn = wrap.querySelector('.load-all-btn');
+            if (loadBtn) loadBtn.textContent = '불러오는 중...';
+
+            try {
+                const res = await fetch('/api/transactions_by_desc?desc=' + encodeURIComponent(desc) + '&unclassified=1');
+                const data = await res.json();
+                const rows = data.rows || [];
+                const fmt = n => n ? n.toLocaleString() : '';
+
+                if (!rows.length) {
+                    if (loadBtn) loadBtn.textContent = '데이터 없음';
+                    return;
+                }
+
+                wrap.innerHTML = `<table class="sample-table">
+                    <thead><tr>
+                        <th>날짜</th><th>거래처</th>
+                        <th style="text-align:right">입금</th>
+                        <th style="text-align:right">출금</th>
+                        <th>메모</th>
+                    </tr></thead>
+                    <tbody>${rows.map(s => `<tr>
+                        <td style="white-space:nowrap">${s.날짜}</td>
+                        <td>${s.거래처}</td>
+                        <td class="amount" style="color:var(--success)">${s.입금 > 0 ? fmt(s.입금) : ''}</td>
+                        <td class="amount" style="color:var(--danger)">${s.출금 > 0 ? fmt(s.출금) : ''}</td>
+                        <td style="font-size:0.75rem;color:var(--text-light);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.메모 || ''}</td>
+                    </tr>`).join('')}</tbody>
+                </table>
+                <div style="font-size:0.78rem;color:var(--text-light);padding:0.3rem 0.5rem;text-align:center">
+                    전체 ${rows.length}건
+                </div>`;
+            } catch(e) {
+                if (loadBtn) loadBtn.textContent = '로드 실패';
+            }
+        }
+
+        // ===== Toast =====
+        let _toastTimer = null;
+        function showToast(msg, isErr, logId) {
+            const t = $('toast');
+            if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+            t.style.background = isErr ? '#991b1b' : '#065f46';
+
+            if (logId && !isErr) {
+                const dur = 10;
+                t.innerHTML = `<span class="toast-msg">${msg}</span>`
+                    + `<button class="undo-btn" onclick="undoFromToast('${logId}')">↩️ 되돌리기</button>`
+                    + `<span class="toast-timer" style="animation-duration:${dur}s"></span>`;
+                t.classList.add('show');
+                _toastTimer = setTimeout(() => { t.classList.remove('show'); _toastTimer = null; }, dur * 1000);
+            } else {
+                t.innerHTML = `<span class="toast-msg">${msg}</span>`;
+                t.classList.add('show');
+                _toastTimer = setTimeout(() => { t.classList.remove('show'); _toastTimer = null; }, 2500);
+            }
+        }
+
+        async function undoFromToast(logId) {
+            const t = $('toast');
+            t.classList.remove('show');
+            if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+            try {
+                const res = await fetch('/api/log/undo', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({id: logId})
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    showToast(`${data.restored}건이 되돌려졌습니다`);
+                    fetchGroups();
+                } else {
+                    showToast(data.error || '되돌리기 실패', true);
+                }
+            } catch(e) { showToast('되돌리기 실패', true); }
+        }
+
+        // ===== Init =====
+        fetchGroups();
+        </script>
+        {% endif %}
+    </div>
+</body>
+</html>

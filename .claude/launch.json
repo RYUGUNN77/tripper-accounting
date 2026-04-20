@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "accounting-dashboard",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": ["-c", "export PATH=/usr/local/bin:$PATH && cd '/Users/ryugunn/Desktop/회계 정리' && exec npm run dev"],
+      "port": 3000,
+      "autoPort": true
+    }
+  ]
+}

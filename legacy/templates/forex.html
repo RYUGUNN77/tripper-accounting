@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>외화 계좌 - 회계 자금 흐름 분석</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb; --primary-dark: #1d4ed8; --success: #16a34a;
+            --danger: #dc2626; --warning: #d97706; --bg: #f1f5f9; --card: #fff;
+            --text: #1e293b; --text-light: #64748b; --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08); --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+            --forex: #0d9488; --forex-dark: #0f766e;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+
+        /* nav CSS removed — using sidebar */
+
+        .container { max-width:1400px; margin:0 auto; padding:1.5rem; }
+
+        /* 업로드 영역 */
+        .upload-area {
+            background:var(--card); border:2px dashed var(--border); border-radius:12px;
+            padding:2rem; text-align:center; margin-bottom:1.5rem; cursor:pointer; transition:all .2s;
+        }
+        .upload-area:hover { border-color:var(--forex); background:#f0fdfa; }
+        .upload-area.dragover { border-color:var(--forex); background:#ccfbf1; }
+        .upload-area h3 { color:var(--forex); margin-bottom:.5rem; }
+        .upload-area p { color:var(--text-light); font-size:.9rem; }
+        .upload-area input { display:none; }
+
+        /* KPI */
+        .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:1rem; margin-bottom:1.5rem; }
+        .kpi-card { background:var(--card); border-radius:12px; padding:1.2rem; box-shadow:var(--shadow); border-left:4px solid var(--border); }
+        .kpi-card.ota { border-color:var(--forex); }
+        .kpi-card.convert { border-color:var(--warning); }
+        .kpi-card.balance { border-color:var(--primary); }
+        .kpi-card.match { border-color:var(--success); }
+        .kpi-label { font-size:.82rem; color:var(--text-light); font-weight:600; margin-bottom:.3rem; }
+        .kpi-value { font-size:1.5rem; font-weight:700; }
+        .kpi-sub { font-size:.78rem; color:var(--text-light); margin-top:.2rem; }
+        .kpi-value.positive { color:var(--success); }
+        .kpi-value.teal { color:var(--forex); }
+
+        /* 차트 */
+        .chart-grid { display:grid; grid-template-columns:2fr 1fr; gap:1rem; margin-bottom:1.5rem; }
+        .chart-card { background:var(--card); border-radius:12px; padding:1.2rem; box-shadow:var(--shadow); }
+        .chart-card h3 { font-size:.95rem; margin-bottom:.8rem; color:var(--text); }
+        .chart-card.full { grid-column: 1 / -1; }
+
+        /* 테이블 */
+        .section-card { background:var(--card); border-radius:12px; padding:1.2rem; box-shadow:var(--shadow); margin-bottom:1.5rem; }
+        .section-card h3 { font-size:.95rem; margin-bottom:.8rem; }
+        table { width:100%; border-collapse:collapse; font-size:.85rem; }
+        th { background:#f8fafc; padding:.6rem .8rem; text-align:left; font-weight:600; border-bottom:2px solid var(--border); white-space:nowrap; }
+        td { padding:.5rem .8rem; border-bottom:1px solid #f1f5f9; }
+        .amount { text-align:right; font-variant-numeric:tabular-nums; }
+        .badge { display:inline-block; padding:.15rem .5rem; border-radius:4px; font-size:.75rem; font-weight:600; }
+        .badge-ota { background:#ccfbf1; color:#0f766e; }
+        .badge-convert { background:#fef3c7; color:#b45309; }
+        .badge-interest { background:#ede9fe; color:#5b21b6; }
+        .badge-etc { background:#f1f5f9; color:#475569; }
+        .badge-matched { background:#dcfce7; color:#166534; }
+        .badge-unmatched { background:#fee2e2; color:#991b1b; }
+
+        /* 탭 */
+        .tabs { display:flex; gap:.3rem; margin-bottom:1rem; border-bottom:2px solid var(--border); padding-bottom:0; }
+        .tab-btn { padding:.5rem 1rem; background:none; border:none; border-bottom:3px solid transparent; font-size:.88rem; font-weight:600; color:var(--text-light); cursor:pointer; transition:all .2s; margin-bottom:-2px; }
+        .tab-btn:hover { color:var(--text); }
+        .tab-btn.active { color:var(--forex); border-bottom-color:var(--forex); }
+        .tab-panel { display:none; }
+        .tab-panel.active { display:block; }
+
+        .toast {
+            position: fixed; bottom: 20px; right: 20px; padding: 0.8rem 1.2rem;
+            background: #065f46; color: white; border-radius: 10px; font-size: 0.9rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 999; opacity: 0;
+            transition: opacity 0.3s; pointer-events: none;
+        }
+        .toast.show { opacity: 1; pointer-events: auto; }
+
+        .empty-state { text-align:center; padding:4rem 2rem; color:var(--text-light); }
+        .empty-state h2 { color:var(--forex); margin-bottom:.5rem; }
+
+        .platform-color { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:.4rem; vertical-align:middle; }
+
+        @media (max-width: 768px) {
+            .chart-grid { grid-template-columns:1fr; }
+            .kpi-grid { grid-template-columns:repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+{% include '_sidebar.html' %}
+
+    <div class="container">
+        <!-- 업로드 영역 -->
+        <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+            <h3>💱 외화 계좌 파일 업로드</h3>
+            <p>IBK 외화통장 엑셀 파일을 드래그하거나 클릭하여 업로드</p>
+            <input type="file" id="fileInput" multiple accept=".xlsx,.xls,.csv">
+        </div>
+
+        {% if not has_data %}
+        <div class="empty-state">
+            <h2>💱 외화 계좌 데이터 없음</h2>
+            <p>위 영역에 외화 계좌 엑셀 파일을 업로드해주세요.</p>
+        </div>
+        {% else %}
+
+        <!-- KPI -->
+        <div class="kpi-grid">
+            <div class="kpi-card ota"><div class="kpi-label">OTA 매출 (USD)</div><div class="kpi-value teal" id="kpiOta">-</div><div class="kpi-sub" id="kpiOtaCount"></div></div>
+            <div class="kpi-card" style="border-left:4px solid #6366f1"><div class="kpi-label">B2B 매출 (USD)</div><div class="kpi-value" id="kpiB2b" style="color:#6366f1">-</div><div class="kpi-sub" id="kpiB2bCount"></div></div>
+            <div class="kpi-card convert"><div class="kpi-label">환전 총액 (USD)</div><div class="kpi-value" id="kpiConvert">-</div><div class="kpi-sub" id="kpiAvgRate"></div></div>
+            <div class="kpi-card balance"><div class="kpi-label">현재 잔액 (USD)</div><div class="kpi-value" id="kpiBalance">-</div></div>
+            <div class="kpi-card match"><div class="kpi-label">환전 매칭</div><div class="kpi-value positive" id="kpiMatch">-</div><div class="kpi-sub" id="kpiMatchSub"></div></div>
+        </div>
+
+        <!-- 탭 -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('overview')">개요</button>
+            <button class="tab-btn" onclick="switchTab('platforms')">플랫폼별</button>
+            <button class="tab-btn" onclick="switchTab('transfers')">환전 매칭</button>
+            <button class="tab-btn" onclick="switchTab('transactions')">전체 내역</button>
+        </div>
+
+        <!-- 탭: 개요 -->
+        <div class="tab-panel active" id="tab-overview">
+            <div class="chart-grid">
+                <div class="chart-card"><h3>📈 월별 OTA 수입 추이 (USD)</h3><canvas id="trendChart"></canvas></div>
+                <div class="chart-card"><h3>🏢 플랫폼별 비중</h3><canvas id="platformChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- 탭: 플랫폼별 -->
+        <div class="tab-panel" id="tab-platforms">
+            <div class="section-card">
+                <h3>플랫폼별 상세 현황</h3>
+                <p style="color:var(--text-light);font-size:.85rem;margin-bottom:1rem">각 플랫폼의 분류를 OTA / B2B / 개인 중에서 선택할 수 있습니다.</p>
+                <div id="platformDetail"></div>
+            </div>
+        </div>
+
+        <!-- 탭: 환전 매칭 -->
+        <div class="tab-panel" id="tab-transfers">
+            <div class="section-card">
+                <h3>💱 외화 환전 ↔ 원화 입금 매칭</h3>
+                <p style="color:var(--text-light);font-size:.85rem;margin-bottom:1rem">외화 계좌 출금(환전)과 원화 계좌 자체이체 입금을 날짜/환율 기준으로 자동 매칭합니다.</p>
+                <table>
+                    <thead><tr><th>외화 출금일</th><th class="amount">USD 금액</th><th>원화 입금일</th><th class="amount">KRW 금액</th><th class="amount">환율</th><th>상태</th></tr></thead>
+                    <tbody id="matchTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 탭: 전체 내역 -->
+        <div class="tab-panel" id="tab-transactions">
+            <div class="section-card">
+                <h3>전체 거래 내역</h3>
+                <table>
+                    <thead><tr><th>거래일시</th><th>유형</th><th>분류</th><th>플랫폼</th><th class="amount">입금(USD)</th><th class="amount">출금(USD)</th><th class="amount">잔액</th><th>적요</th></tr></thead>
+                    <tbody id="txTable"></tbody>
+                </table>
+            </div>
+        </div>
+
+        {% endif %}
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+    const $ = id => document.getElementById(id);
+    const FMT_USD = v => '$' + Number(v).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    const FMT_KRW = v => Number(Math.round(v)).toLocaleString('ko-KR') + '원';
+    const PLAT_COLORS = {
+        'GetYourGuide': '#ff5533',
+        'Viator': '#00aa6c',
+        'Klook': '#ff5722',
+        'Beyonder': '#6366f1',
+        'Airbnb': '#ff385c',
+    };
+
+    let trendChart, platformChart;
+
+    // ===== 업로드 =====
+    const uploadArea = $('uploadArea');
+    const fileInput = $('fileInput');
+
+    if (uploadArea) {
+        uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+        uploadArea.addEventListener('drop', e => {
+            e.preventDefault(); uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+        });
+        fileInput.addEventListener('change', () => { if (fileInput.files.length) uploadFiles(fileInput.files); });
+    }
+
+    async function uploadFiles(files) {
+        const fd = new FormData();
+        for (const f of files) fd.append('files', f);
+        uploadArea.innerHTML = '<h3>업로드 중...</h3>';
+        try {
+            const res = await fetch('/api/forex/upload', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.ok) {
+                const msgs = data.results.map(r => r.error ? `${r.file}: 오류 - ${r.error}` : `${r.file}: ${r.added}건 추가`);
+                showToast(msgs.join(' | '));
+                location.reload();
+            } else {
+                showToast(data.error || '업로드 실패', true);
+                resetUploadArea();
+            }
+        } catch(e) { showToast('업로드 실패: ' + e.message, true); resetUploadArea(); }
+    }
+
+    function resetUploadArea() {
+        uploadArea.innerHTML = '<h3>💱 외화 계좌 파일 업로드</h3><p>IBK 외화통장 엑셀 파일을 드래그하거나 클릭하여 업로드</p><input type="file" id="fileInput" multiple accept=".xlsx,.xls,.csv">';
+    }
+
+    // ===== 탭 =====
+    function switchTab(name) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        event.target.classList.add('active');
+        $('tab-' + name).classList.add('active');
+
+        if (name === 'transfers') loadMatches();
+        if (name === 'transactions') loadTransactions();
+        if (name === 'platforms') loadPlatformDetail();
+    }
+
+    // ===== 데이터 로드 =====
+    {% if has_data %}
+    async function loadSummary() {
+        try {
+            const [sumRes, trendRes, matchRes] = await Promise.all([
+                fetch('/api/forex/summary').then(r => r.json()),
+                fetch('/api/forex/trend').then(r => r.json()),
+                fetch('/api/forex/matches').then(r => r.json()),
+            ]);
+
+            // KPI
+            const byClass = sumRes.분류별 || {};
+            const otaUsd = (byClass['OTA'] || {}).입금USD || 0;
+            const b2bUsd = (byClass['B2B'] || {}).입금USD || 0;
+            const otaCnt = (byClass['OTA'] || {}).건수 || 0;
+            const b2bCnt = (byClass['B2B'] || {}).건수 || 0;
+            $('kpiOta').textContent = FMT_USD(otaUsd);
+            $('kpiOtaCount').textContent = `${otaCnt}건`;
+            $('kpiB2b').textContent = FMT_USD(b2bUsd);
+            $('kpiB2bCount').textContent = `${b2bCnt}건`;
+            $('kpiConvert').textContent = FMT_USD(sumRes.환전출금USD || 0);
+            $('kpiBalance').textContent = FMT_USD(sumRes.현재잔액USD || 0);
+            $('kpiMatch').textContent = `${matchRes.matched_count}/${matchRes.matched_count + matchRes.unmatched_count}`;
+            $('kpiMatchSub').textContent = `평균환율 ${matchRes.avg_rate.toLocaleString()}`;
+            $('kpiAvgRate').textContent = matchRes.avg_rate ? `평균환율 ₩${matchRes.avg_rate.toLocaleString()}` : '';
+
+            // 추이 차트
+            renderTrendChart(trendRes.trend, sumRes.플랫폼별 || {});
+
+            // 플랫폼 파이차트
+            renderPlatformChart(sumRes.플랫폼별 || {});
+
+        } catch(e) { console.error('로드 실패:', e); }
+    }
+
+    function renderTrendChart(trend, platforms) {
+        const labels = trend.map(t => t.연월);
+        const platNames = [...new Set(trend.flatMap(t => Object.keys(t.플랫폼별 || {})))];
+
+        const datasets = platNames.map(name => ({
+            label: name,
+            data: trend.map(t => (t.플랫폼별 || {})[name] || 0),
+            backgroundColor: PLAT_COLORS[name] || '#94a3b8',
+            borderRadius: 4,
+        }));
+
+        if (trendChart) trendChart.destroy();
+        trendChart = new Chart($('trendChart'), {
+            type: 'bar',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                plugins: {
+                    tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${FMT_USD(ctx.raw)}` } },
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                },
+                scales: {
+                    x: { stacked: true, grid: { display: false } },
+                    y: { stacked: true, ticks: { callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0) + 'K' : v) } },
+                },
+            },
+        });
+    }
+
+    function renderPlatformChart(platforms) {
+        const labels = Object.keys(platforms);
+        const values = labels.map(k => platforms[k].입금USD);
+        const colors = labels.map(k => PLAT_COLORS[k] || '#94a3b8');
+
+        if (platformChart) platformChart.destroy();
+        platformChart = new Chart($('platformChart'), {
+            type: 'doughnut',
+            data: {
+                labels,
+                datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }],
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    tooltip: { callbacks: { label: ctx => `${ctx.label}: ${FMT_USD(ctx.raw)} (${(ctx.raw / values.reduce((a,b)=>a+b,0) * 100).toFixed(1)}%)` } },
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                },
+            },
+        });
+    }
+
+    async function loadMatches() {
+        try {
+            const res = await fetch('/api/forex/matches');
+            const data = await res.json();
+            const tbody = $('matchTable');
+            if (!data.matches || !data.matches.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-light)">환전 내역이 없습니다.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.matches.map(m => {
+                const statusClass = m.매칭상태 === '매칭됨' ? 'badge-matched' : 'badge-unmatched';
+                return `<tr>
+                    <td>${m.외화일자}</td>
+                    <td class="amount">${FMT_USD(m.USD금액)}</td>
+                    <td>${m.원화일자 || '-'}</td>
+                    <td class="amount">${m.KRW금액 ? FMT_KRW(m.KRW금액) : '-'}</td>
+                    <td class="amount">${m.환율 ? '₩' + m.환율.toLocaleString() : '-'}</td>
+                    <td><span class="badge ${statusClass}">${m.매칭상태}</span></td>
+                </tr>`;
+            }).join('');
+        } catch(e) { console.error(e); }
+    }
+
+    async function loadTransactions() {
+        try {
+            const res = await fetch('/api/forex/transactions');
+            const data = await res.json();
+            const tbody = $('txTable');
+            if (!data.rows || !data.rows.length) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-light)">거래 내역이 없습니다.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.rows.map(r => {
+                const typeClass = r.거래유형 === 'OTA입금' ? 'badge-ota' : r.거래유형 === '환전출금' ? 'badge-convert' : r.거래유형 === '이자' ? 'badge-interest' : 'badge-etc';
+                const clsClass = r.분류 === 'OTA' ? 'badge-ota' : r.분류 === 'B2B' ? 'badge-interest' : r.분류 === '개인' ? 'badge-convert' : '';
+                const clsBadge = r.분류 ? `<span class="badge ${clsClass}">${r.분류}</span>` : '-';
+                return `<tr>
+                    <td style="white-space:nowrap">${r.거래일시}</td>
+                    <td><span class="badge ${typeClass}">${r.거래유형}</span></td>
+                    <td>${clsBadge}</td>
+                    <td>${r.플랫폼 ? '<span class="platform-color" style="background:' + (PLAT_COLORS[r.플랫폼] || '#94a3b8') + '"></span>' + r.플랫폼 : '-'}</td>
+                    <td class="amount" style="color:${r.입금 > 0 ? 'var(--success)' : ''}">${r.입금 > 0 ? FMT_USD(r.입금) : '-'}</td>
+                    <td class="amount" style="color:${r.출금 > 0 ? 'var(--danger)' : ''}">${r.출금 > 0 ? FMT_USD(r.출금) : '-'}</td>
+                    <td class="amount">${FMT_USD(r.잔액)}</td>
+                    <td>${r.해외수입업자 || r.적요}</td>
+                </tr>`;
+            }).join('');
+        } catch(e) { console.error(e); }
+    }
+
+    async function loadPlatformDetail() {
+        try {
+            const [sumRes, txRes] = await Promise.all([
+                fetch('/api/forex/summary').then(r => r.json()),
+                fetch('/api/forex/transactions').then(r => r.json()),
+            ]);
+            const platforms = sumRes.플랫폼별 || {};
+            const container = $('platformDetail');
+
+            if (!Object.keys(platforms).length) {
+                container.innerHTML = '<p style="color:var(--text-light)">플랫폼 데이터가 없습니다.</p>';
+                return;
+            }
+
+            // 플랫폼별 현재 분류 추출
+            const platClass = {};
+            for (const r of (txRes.rows || [])) {
+                if (r.플랫폼 && r.거래유형 === 'OTA입금' && r.분류) {
+                    platClass[r.플랫폼] = r.분류;
+                }
+            }
+
+            const total = Object.values(platforms).reduce((s, p) => s + p.입금USD, 0);
+            const CLS_OPTIONS = ['OTA', 'B2B', '개인', '미분류'];
+            const CLS_COLORS = {'OTA': 'badge-ota', 'B2B': 'badge-interest', '개인': 'badge-convert', '미분류': 'badge-etc'};
+
+            let html = '<table><thead><tr><th>플랫폼</th><th>분류</th><th class="amount">총입금 (USD)</th><th>건수</th><th class="amount">비중</th></tr></thead><tbody>';
+            const sorted = Object.entries(platforms).sort((a,b) => b[1].입금USD - a[1].입금USD);
+            for (const [name, info] of sorted) {
+                const pct = (info.입금USD / total * 100).toFixed(1);
+                const curClass = platClass[name] || '미분류';
+                const options = CLS_OPTIONS.map(c => `<option value="${c}" ${c === curClass ? 'selected' : ''}>${c}</option>`).join('');
+                html += `<tr>
+                    <td><span class="platform-color" style="background:${PLAT_COLORS[name] || '#94a3b8'}"></span><strong>${name}</strong></td>
+                    <td><select onchange="classifyPlatform('${name}', this.value)" style="padding:.25rem .5rem;border:1px solid var(--border);border-radius:6px;font-size:.82rem;cursor:pointer">${options}</select></td>
+                    <td class="amount" style="font-weight:600">${FMT_USD(info.입금USD)}</td>
+                    <td>${info.건수}건</td>
+                    <td class="amount">${pct}%</td>
+                </tr>`;
+            }
+            html += `<tr style="font-weight:700;border-top:2px solid var(--border)"><td colspan="2">합계</td><td class="amount">${FMT_USD(total)}</td><td>${Object.values(platforms).reduce((s,p)=>s+p.건수,0)}건</td><td class="amount">100%</td></tr>`;
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        } catch(e) { console.error(e); }
+    }
+
+    async function classifyPlatform(platform, classification) {
+        try {
+            const res = await fetch('/api/forex/batch_classify', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({items: [{platform, '분류': classification}]}),
+            });
+            const data = await res.json();
+            if (data.ok) {
+                showToast(`${platform} → ${classification} (${data.changed}건)`);
+                loadSummary();
+            } else showToast(data.error || '실패', true);
+        } catch(e) { showToast('오류: ' + e.message, true); }
+    }
+
+    loadSummary();
+    {% endif %}
+
+    // Toast
+    function showToast(msg, isErr) {
+        const t = $('toast');
+        t.textContent = msg;
+        t.style.background = isErr ? '#991b1b' : '#065f46';
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
+    </script>
+</body>
+</html>
