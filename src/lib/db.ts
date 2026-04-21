@@ -134,12 +134,44 @@ function initSchema(db: Database.Database) {
       fg TEXT
     );
 
+    -- Codef 연결 관리
+    CREATE TABLE IF NOT EXISTS codef_connections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      connected_id TEXT UNIQUE NOT NULL,
+      status TEXT NOT NULL DEFAULT 'connected',
+      institutions TEXT NOT NULL DEFAULT '[]',
+      ibk_account TEXT,
+      cert_name TEXT,
+      last_sync_at TEXT,
+      last_sync_status TEXT,
+      last_sync_error TEXT,
+      last_sync_imported INTEGER DEFAULT 0,
+      last_sync_skipped INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now', 'localtime')),
+      updated_at TEXT DEFAULT (datetime('now', 'localtime'))
+    );
+
+    -- Codef 동기화 이력
+    CREATE TABLE IF NOT EXISTS codef_sync_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      connection_id INTEGER NOT NULL,
+      sync_date TEXT DEFAULT (datetime('now', 'localtime')),
+      start_date TEXT,
+      end_date TEXT,
+      status TEXT,
+      imported_count INTEGER DEFAULT 0,
+      skipped_count INTEGER DEFAULT 0,
+      error_message TEXT,
+      FOREIGN KEY (connection_id) REFERENCES codef_connections(id)
+    );
+
     -- 인덱스 (성능)
     CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
     CREATE INDEX IF NOT EXISTS idx_transactions_major ON transactions(major_category);
     CREATE INDEX IF NOT EXISTS idx_transactions_source ON transactions(source_file);
     CREATE INDEX IF NOT EXISTS idx_classification_keyword ON classification_rules(keyword);
     CREATE INDEX IF NOT EXISTS idx_forex_date ON forex_transactions(date);
+    CREATE INDEX IF NOT EXISTS idx_codef_sync_history_conn ON codef_sync_history(connection_id);
   `);
 }
 

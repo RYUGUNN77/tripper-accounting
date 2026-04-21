@@ -125,6 +125,140 @@ export async function addAccountToConnectedId(connectedId: string, accounts: Acc
   }
 }
 
+// ─── 자동 연결: 모든 기관에 인증서로 연결 시도 ──────────────────────────────
+interface InstitutionDef {
+  key: string;
+  businessType: string;
+  organization: string;
+  label: string;
+}
+
+const ALL_INSTITUTIONS: InstitutionDef[] = [
+  { key: "ibk", businessType: "BK", organization: "0003", label: "기업은행" },
+  { key: "samsungCard", businessType: "CD", organization: "0325", label: "삼성카드" },
+  { key: "bcCard", businessType: "CD", organization: "0301", label: "BC카드" },
+];
+
+export interface AutoConnectResult {
+  connectedId: string;
+  succeeded: { key: string; label: string; accounts?: { number: string; name: string }[] }[];
+  failed: { key: string; label: string; reason: string }[];
+}
+
+/**
+ * 모든 지원 기관에 인증서로 자동 연결 시도
+ * 성공한 기관만 Connected ID에 등록, 은행은 계좌 목록도 자동 조회
+ */
+export async function autoConnectAll(
+  certFile: string,
+  keyFile: string,
+  encryptedPassword: string
+): Promise<AutoConnectResult> {
+  const token = await getAccessToken();
+
+  // 모든 기관을 한번에 등록 시도
+  const accountList = ALL_INSTITUTIONS.map(inst => ({
+    countryCode: "KR",
+    businessType: inst.businessType,
+    clientType: "B",
+    organization: inst.organization,
+    loginType: "0",
+    certFile,
+    keyFile,
+    password: encryptedPassword,
+  }));
+
+  const res = await fetch(`${BASE_URL}/v1/account/create`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ accountList }),
+  });
+
+  const data = await parseCodefResponse(res);
+  const result = data.result as { code: string; message: string };
+
+  // CF-04012: 부분 성공 (일부 기관만 등록됨) → 정상 처리
+  // CF-00000: 전체 성공
+  if (result.code !== "CF-00000" && result.code !== "CF-04012") {
+    throw new Error(`금융기관 연결 실패: ${result.message}`);
+  }
+
+  const responseData = data.data as {
+    connectedId?: string;
+    successList?: { organization: string }[];
+    errorList?: { organization: string; message: string }[];
+  };
+
+  const connectedId = responseData.connectedId;
+  if (!connectedId) {
+    throw new Error("Connected ID를 받지 못했습니다. 인증서 비밀번호를 확인해주세요.");
+  }
+
+  const successOrgs = new Set(
+    (responseData.successList ?? []).map(s => s.organization)
+  );
+
+  const succeeded: AutoConnectResult["succeeded"] = [];
+  const failed: AutoConnectResult["failed"] = [];
+
+  for (const inst of ALL_INSTITUTIONS) {
+    if (successOrgs.has(inst.organization)) {
+      const entry: AutoConnectResult["succeeded"][0] = { key: inst.key, label: inst.label };
+
+      // 은행이면 계좌 목록 자동 조회
+      if (inst.businessType === "BK") {
+        try {
+          entry.accounts = await fetchBankAccountList(connectedId, inst.organization);
+        } catch {
+          // 계좌 조회 실패해도 연결 자체는 성공
+        }
+      }
+
+      succeeded.push(entry);
+    } else {
+      const errItem = (responseData.errorList ?? []).find(e => e.organization === inst.organization);
+      failed.push({
+        key: inst.key,
+        label: inst.label,
+        reason: errItem?.message ?? "연결 실패",
+      });
+    }
+  }
+
+  return { connectedId, succeeded, failed };
+}
+
+// ─── 은행 계좌 목록 자동 조회 ───────────────────────────────────────────────
+async function fetchBankAccountList(
+  connectedId: string,
+  organization: string
+): Promise<{ number: string; name: string }[]> {
+  const token = await getAccessToken();
+
+  const res = await fetch(`${BASE_URL}/v1/kr/bank/b/account/account-list`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ connectedId, organization }),
+  });
+
+  const data = await parseCodefResponse(res);
+  const result = data.result as { code: string; message: string };
+
+  if (result.code !== "CF-00000") return [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data.data ?? []) as any[]).map(row => ({
+    number: row.resAccount ?? row.account ?? "",
+    name: row.resAccountName ?? row.accountName ?? "법인계좌",
+  }));
+}
+
 // ─── 기업은행 법인 계좌 거래내역 조회 ────────────────────────────────────────
 export interface IbkTransactionParams {
   connectedId: string;

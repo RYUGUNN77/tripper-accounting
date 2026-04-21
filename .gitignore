@@ -4,3 +4,6 @@ node_modules/
 .env.local
 *.env
 _tmp/
+*.db-shm
+*.db-wal
+tsconfig.tsbuildinfo

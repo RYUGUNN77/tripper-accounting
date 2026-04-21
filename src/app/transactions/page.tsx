@@ -161,12 +161,12 @@ export default function TransactionsPage() {
               </Button>
             ))}
             <span className="text-gray-300">|</span>
-            <Select value={monthFrom || "all"} onValueChange={v => { setMonthFrom(v === "all" ? "" : v); setPreset(""); setPage(1); }}>
+            <Select value={monthFrom || "all"} onValueChange={v => { setMonthFrom(!v || v === "all" ? "" : v); setPreset(""); setPage(1); }}>
               <SelectTrigger className="w-28 h-7 text-xs"><SelectValue placeholder="시작월" /></SelectTrigger>
               <SelectContent>{data?.months.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
             </Select>
             <span className="text-gray-400 text-xs">~</span>
-            <Select value={monthTo || "all"} onValueChange={v => { setMonthTo(v === "all" ? "" : v); setPreset(""); setPage(1); }}>
+            <Select value={monthTo || "all"} onValueChange={v => { setMonthTo(!v || v === "all" ? "" : v); setPreset(""); setPage(1); }}>
               <SelectTrigger className="w-28 h-7 text-xs"><SelectValue placeholder="종료월" /></SelectTrigger>
               <SelectContent>{data?.months.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
             </Select>
@@ -200,7 +200,7 @@ export default function TransactionsPage() {
             {category && data?.categories[category]?.length ? (
               <>
                 <span className="text-gray-200 mx-1">›</span>
-                <Select value={subcategory || "all"} onValueChange={v => { setSubcategory(v === "all" ? "" : v); setPage(1); }}>
+                <Select value={subcategory || "all"} onValueChange={v => { setSubcategory(!v || v === "all" ? "" : v); setPage(1); }}>
                   <SelectTrigger className="h-6 w-24 text-[10px]"><SelectValue placeholder="중분류" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">전체</SelectItem>

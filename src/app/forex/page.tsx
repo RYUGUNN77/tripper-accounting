@@ -108,7 +108,7 @@ export default function ForexPage() {
                 <ResponsiveContainer width="100%" height={280}>
                   <PieChart>
                     <Pie data={data.platforms} dataKey="total_in" nameKey="platform" cx="50%" cy="50%" outerRadius={90}
-                      label={({ platform, percent }) => `${platform} ${((percent??0)*100).toFixed(0)}%`} labelLine={false} fontSize={11}>
+                      label={({ name, percent }) => `${name} ${((percent??0)*100).toFixed(0)}%`} labelLine={false} fontSize={11}>
                       {data.platforms.map((p, i) => (
                         <Cell key={p.platform} fill={PLATFORM_COLORS[p.platform] || COLORS[i % COLORS.length]} />
                       ))}

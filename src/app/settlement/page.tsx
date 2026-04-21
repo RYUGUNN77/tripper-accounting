@@ -115,7 +115,7 @@ export default function SettlementPage() {
           <h1 className="text-2xl font-bold text-gray-900">투어 정산</h1>
           <p className="text-sm text-gray-500">회계 데이터 기반 분석</p>
         </div>
-        <Select value={month} onValueChange={(v) => fetchData(v)}>
+        <Select value={month} onValueChange={(v) => fetchData(v ?? undefined)}>
           <SelectTrigger className="w-32">
             <SelectValue />
           </SelectTrigger>

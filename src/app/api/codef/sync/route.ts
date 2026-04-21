@@ -29,6 +29,11 @@ export async function POST(req: NextRequest) {
 
   const results = { imported: 0, skipped: 0, errors: [] as string[] };
 
+  const syncStmt = db.prepare(`
+    INSERT INTO codef_sync_history (institution_code, institution_name, start_date, end_date, imported, skipped, status, error_message)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
   // 기업은행 거래내역 조회
   if (ibkAccount) {
     try {
@@ -36,8 +41,12 @@ export async function POST(req: NextRequest) {
       const { imported, skipped } = insertTransactions(db, rows, "IBK");
       results.imported += imported;
       results.skipped += skipped;
+      syncStmt.run("0003", "기업은행", startDate, endDate, imported, skipped, "success", null);
+      db.prepare("UPDATE codef_connections SET last_synced_at = datetime('now', 'localtime') WHERE institution_code = ?").run("0003");
     } catch (err) {
-      results.errors.push(`기업은행: ${err instanceof Error ? err.message : "오류"}`);
+      const msg = err instanceof Error ? err.message : "오류";
+      results.errors.push(`기업은행: ${msg}`);
+      syncStmt.run("0003", "기업은행", startDate, endDate, 0, 0, "error", msg);
     }
   }
 
@@ -47,8 +56,12 @@ export async function POST(req: NextRequest) {
     const { imported, skipped } = insertTransactions(db, rows, "BC카드");
     results.imported += imported;
     results.skipped += skipped;
+    syncStmt.run("0301", "BC카드", startDate, endDate, imported, skipped, "success", null);
+    db.prepare("UPDATE codef_connections SET last_synced_at = datetime('now', 'localtime') WHERE institution_code = ?").run("0301");
   } catch (err) {
-    results.errors.push(`BC카드: ${err instanceof Error ? err.message : "오류"}`);
+    const msg = err instanceof Error ? err.message : "오류";
+    results.errors.push(`BC카드: ${msg}`);
+    syncStmt.run("0301", "BC카드", startDate, endDate, 0, 0, "error", msg);
   }
 
   // 삼성카드 거래내역 조회
@@ -57,8 +70,12 @@ export async function POST(req: NextRequest) {
     const { imported, skipped } = insertTransactions(db, rows, "삼성카드");
     results.imported += imported;
     results.skipped += skipped;
+    syncStmt.run("0325", "삼성카드", startDate, endDate, imported, skipped, "success", null);
+    db.prepare("UPDATE codef_connections SET last_synced_at = datetime('now', 'localtime') WHERE institution_code = ?").run("0325");
   } catch (err) {
-    results.errors.push(`삼성카드: ${err instanceof Error ? err.message : "오류"}`);
+    const msg = err instanceof Error ? err.message : "오류";
+    results.errors.push(`삼성카드: ${msg}`);
+    syncStmt.run("0325", "삼성카드", startDate, endDate, 0, 0, "error", msg);
   }
 
   return NextResponse.json(results);

@@ -15,6 +15,7 @@ import {
   TrendingUp,
   ChevronLeft,
   ChevronRight,
+  Link2,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { href: "/transactions", label: "거래내역", icon: ArrowLeftRight },
   { href: "/classify", label: "분류", icon: Tags },
   { href: "/data", label: "데이터 관리", icon: Upload },
+  { href: "/data/connections", label: "연결기관", icon: Link2 },
   { href: "/settlement", label: "투어 정산", icon: Calculator },
   { href: "/forecast", label: "재무 예측", icon: TrendingUp },
   { href: "/forex", label: "외화 계좌", icon: DollarSign },
@@ -64,7 +66,9 @@ export function Sidebar() {
           const isActive =
             item.href === "/"
               ? pathname === "/"
-              : pathname.startsWith(item.href);
+              : item.href === "/data"
+                ? pathname === "/data"
+                : pathname.startsWith(item.href);
           const Icon = item.icon;
 
           return (

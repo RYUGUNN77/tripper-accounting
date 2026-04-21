@@ -178,12 +178,12 @@ export default function DashboardPage() {
           ))}
           <span className="text-gray-300">|</span>
           {/* 월 셀렉트 */}
-          <Select value={monthFrom || "all"} onValueChange={v => { setMonthFrom(v === "all" ? "" : v); setPreset("all"); }}>
+          <Select value={monthFrom || "all"} onValueChange={v => { setMonthFrom(!v || v === "all" ? "" : v); setPreset("all"); }}>
             <SelectTrigger className="w-28 h-7 text-xs"><SelectValue placeholder="시작" /></SelectTrigger>
             <SelectContent>{data.months.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
           </Select>
           <span className="text-gray-400 text-xs">~</span>
-          <Select value={monthTo || "all"} onValueChange={v => { setMonthTo(v === "all" ? "" : v); setPreset("all"); }}>
+          <Select value={monthTo || "all"} onValueChange={v => { setMonthTo(!v || v === "all" ? "" : v); setPreset("all"); }}>
             <SelectTrigger className="w-28 h-7 text-xs"><SelectValue placeholder="종료" /></SelectTrigger>
             <SelectContent>{data.months.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
           </Select>
