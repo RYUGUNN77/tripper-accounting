@@ -6,7 +6,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchIbkTransactions, fetchSamsungCardTransactions, fetchBcCardTransactions, CodefTransaction } from "@/lib/codef";
 import { getDb } from "@/lib/db";
-import { randomUUID } from "crypto";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -27,12 +26,32 @@ export async function POST(req: NextRequest) {
   const connectedId = connectedRow.value;
   const ibkAccount = accountRow?.value ?? "";
 
-  const results = { imported: 0, skipped: 0, errors: [] as string[] };
+  // 연결 ID로 connection 레코드 조회
+  const connection = db.prepare("SELECT id FROM codef_connections WHERE connected_id = ?").get(connectedId) as { id: number } | undefined;
+  const connectionId = connection?.id ?? null;
 
+  const results = { imported: 0, skipped: 0, classified: 0, errors: [] as string[] };
+
+  // codef_sync_history: 실제 스키마에 맞춤 (connection_id FK 기반)
   const syncStmt = db.prepare(`
-    INSERT INTO codef_sync_history (institution_code, institution_name, start_date, end_date, imported, skipped, status, error_message)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO codef_sync_history (connection_id, start_date, end_date, imported_count, skipped_count, status, error_message)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
+
+  // codef_connections 동기화 상태 업데이트
+  const updateConnectionSync = (imported: number, skipped: number, syncStatus: string, errorMsg: string | null) => {
+    if (!connectionId) return;
+    db.prepare(`
+      UPDATE codef_connections
+      SET last_sync_at = datetime('now', 'localtime'),
+          last_sync_status = ?,
+          last_sync_error = ?,
+          last_sync_imported = last_sync_imported + ?,
+          last_sync_skipped = last_sync_skipped + ?,
+          updated_at = datetime('now', 'localtime')
+      WHERE id = ?
+    `).run(syncStatus, errorMsg, imported, skipped, connectionId);
+  };
 
   // 기업은행 거래내역 조회
   if (ibkAccount) {
@@ -41,12 +60,13 @@ export async function POST(req: NextRequest) {
       const { imported, skipped } = insertTransactions(db, rows, "IBK");
       results.imported += imported;
       results.skipped += skipped;
-      syncStmt.run("0003", "기업은행", startDate, endDate, imported, skipped, "success", null);
-      db.prepare("UPDATE codef_connections SET last_synced_at = datetime('now', 'localtime') WHERE institution_code = ?").run("0003");
+      if (connectionId) syncStmt.run(connectionId, startDate, endDate, imported, skipped, "success", null);
+      updateConnectionSync(imported, skipped, "success", null);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "오류";
       results.errors.push(`기업은행: ${msg}`);
-      syncStmt.run("0003", "기업은행", startDate, endDate, 0, 0, "error", msg);
+      if (connectionId) syncStmt.run(connectionId, startDate, endDate, 0, 0, "error", msg);
+      updateConnectionSync(0, 0, "error", msg);
     }
   }
 
@@ -56,12 +76,13 @@ export async function POST(req: NextRequest) {
     const { imported, skipped } = insertTransactions(db, rows, "BC카드");
     results.imported += imported;
     results.skipped += skipped;
-    syncStmt.run("0301", "BC카드", startDate, endDate, imported, skipped, "success", null);
-    db.prepare("UPDATE codef_connections SET last_synced_at = datetime('now', 'localtime') WHERE institution_code = ?").run("0301");
+    if (connectionId) syncStmt.run(connectionId, startDate, endDate, imported, skipped, "success", null);
+    updateConnectionSync(imported, skipped, "success", null);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "오류";
     results.errors.push(`BC카드: ${msg}`);
-    syncStmt.run("0301", "BC카드", startDate, endDate, 0, 0, "error", msg);
+    if (connectionId) syncStmt.run(connectionId, startDate, endDate, 0, 0, "error", msg);
+    updateConnectionSync(0, 0, "error", msg);
   }
 
   // 삼성카드 거래내역 조회
@@ -70,12 +91,18 @@ export async function POST(req: NextRequest) {
     const { imported, skipped } = insertTransactions(db, rows, "삼성카드");
     results.imported += imported;
     results.skipped += skipped;
-    syncStmt.run("0325", "삼성카드", startDate, endDate, imported, skipped, "success", null);
-    db.prepare("UPDATE codef_connections SET last_synced_at = datetime('now', 'localtime') WHERE institution_code = ?").run("0325");
+    if (connectionId) syncStmt.run(connectionId, startDate, endDate, imported, skipped, "success", null);
+    updateConnectionSync(imported, skipped, "success", null);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "오류";
     results.errors.push(`삼성카드: ${msg}`);
-    syncStmt.run("0325", "삼성카드", startDate, endDate, 0, 0, "error", msg);
+    if (connectionId) syncStmt.run(connectionId, startDate, endDate, 0, 0, "error", msg);
+    updateConnectionSync(0, 0, "error", msg);
+  }
+
+  // 동기화된 거래 자동분류 실행
+  if (results.imported > 0) {
+    results.classified = classifyNewTransactions(db);
   }
 
   return NextResponse.json(results);
@@ -123,4 +150,66 @@ function insertTransactions(
   insertMany(rows);
 
   return { imported, skipped };
+}
+
+/**
+ * 미분류 거래에 대해 classification_rules + people aliases 기반 자동분류 실행
+ * 반환: 분류된 거래 수
+ */
+function classifyNewTransactions(db: ReturnType<typeof getDb>): number {
+  let classified = 0;
+
+  // 1. 규칙 기반 분류 (keyword 길이 역순 = 더 구체적인 규칙 우선)
+  const rules = db.prepare(
+    "SELECT major_category, minor_category, keyword FROM classification_rules ORDER BY priority DESC, LENGTH(keyword) DESC"
+  ).all() as { major_category: string; minor_category: string; keyword: string }[];
+
+  const updateStmt = db.prepare(
+    "UPDATE transactions SET major_category = ?, minor_category = ? WHERE id = ?"
+  );
+
+  const unclassified = db.prepare(
+    "SELECT id, description FROM transactions WHERE major_category IN ('', '미분류') OR major_category IS NULL"
+  ).all() as { id: string; description: string }[];
+
+  // 2. 인력 이름/aliases 로드
+  const people = db.prepare(
+    "SELECT name, aliases FROM people"
+  ).all() as { name: string; aliases: string | null }[];
+
+  const personNames: string[] = [];
+  for (const p of people) {
+    personNames.push(p.name);
+    if (p.aliases) {
+      try {
+        const parsed = JSON.parse(p.aliases) as string[];
+        personNames.push(...parsed);
+      } catch { /* aliases 파싱 실패 무시 */ }
+    }
+  }
+
+  const classifyBatch = db.transaction(() => {
+    for (const tx of unclassified) {
+      const desc = (tx.description || "").trim();
+
+      // 규칙 매칭
+      const matched = rules.find(r => desc.includes(r.keyword));
+      if (matched) {
+        updateStmt.run(matched.major_category, matched.minor_category, tx.id);
+        classified++;
+        continue;
+      }
+
+      // 인력 이름 매칭 → 변동비/가이드비
+      const personMatch = personNames.find(name => desc.includes(name));
+      if (personMatch) {
+        updateStmt.run("변동비", "가이드비", tx.id);
+        classified++;
+      }
+    }
+  });
+
+  classifyBatch();
+
+  return classified;
 }

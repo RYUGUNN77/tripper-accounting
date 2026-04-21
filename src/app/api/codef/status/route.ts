@@ -8,13 +8,29 @@ import { getDb } from "@/lib/db";
 
 interface CodefConnection {
   id: number;
-  institution_code: string;
-  institution_name: string;
-  business_type: string;
+  connected_id: string;
   status: string;
-  connected_id: string | null;
-  connected_at: string;
-  last_synced_at: string | null;
+  institutions: string;
+  ibk_account: string | null;
+  cert_name: string | null;
+  last_sync_at: string | null;
+  last_sync_status: string | null;
+  last_sync_error: string | null;
+  last_sync_imported: number;
+  last_sync_skipped: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface SyncHistory {
+  id: number;
+  connection_id: number;
+  sync_date: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  imported_count: number;
+  skipped_count: number;
   error_message: string | null;
 }
 
@@ -30,12 +46,12 @@ export async function GET() {
     .get("codef_ibk_account") as { value: string } | undefined;
 
   const connections = db
-    .prepare("SELECT * FROM codef_connections ORDER BY connected_at DESC")
+    .prepare("SELECT * FROM codef_connections ORDER BY created_at DESC")
     .all() as CodefConnection[];
 
   const lastSync = db
-    .prepare("SELECT * FROM codef_sync_history ORDER BY synced_at DESC LIMIT 1")
-    .get() as Record<string, unknown> | undefined;
+    .prepare("SELECT * FROM codef_sync_history ORDER BY sync_date DESC LIMIT 1")
+    .get() as SyncHistory | undefined;
 
   return NextResponse.json({
     hasConnectedId: !!connectedIdRow,
