@@ -7,3 +7,4 @@ _tmp/
 *.db-shm
 *.db-wal
 tsconfig.tsbuildinfo
+output/
