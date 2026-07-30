@@ -8,15 +8,14 @@ import { getDb } from "@/lib/db";
 
 interface SyncHistoryRow {
   id: number;
-  institution_code: string;
-  institution_name: string;
+  connection_id: number;
+  sync_date: string;
   start_date: string;
   end_date: string;
-  imported: number;
-  skipped: number;
   status: string;
+  imported_count: number;
+  skipped_count: number;
   error_message: string | null;
-  synced_at: string;
 }
 
 export async function GET(req: Request) {
@@ -25,11 +24,11 @@ export async function GET(req: Request) {
 
   const db = getDb();
   const rows = db
-    .prepare("SELECT * FROM codef_sync_history ORDER BY synced_at DESC LIMIT ?")
+    .prepare("SELECT * FROM codef_sync_history ORDER BY sync_date DESC LIMIT ?")
     .all(limit) as SyncHistoryRow[];
 
   const totalImported = db
-    .prepare("SELECT COALESCE(SUM(imported), 0) as total FROM codef_sync_history WHERE status = 'success'")
+    .prepare("SELECT COALESCE(SUM(imported_count), 0) as total FROM codef_sync_history WHERE status = 'success'")
     .get() as { total: number };
 
   return NextResponse.json({
